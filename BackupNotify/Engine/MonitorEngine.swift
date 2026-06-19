@@ -117,15 +117,17 @@ class MonitorEngine: ObservableObject {
             guard let self else { return }
 
             self.logger.info("Scan cycle starting — \(monitors.count) monitor(s)")
-            var anyError: String?
+            var errors: [String] = []
 
             for monitor in monitors {
-                self.processMonitor(monitor, config: capturedConfig, errorAccumulator: &anyError)
+                self.processMonitor(monitor, config: capturedConfig, errors: &errors)
             }
+
+            let combinedError = errors.isEmpty ? nil : errors.joined(separator: "; ")
 
             DispatchQueue.main.async {
                 self.lastScanDate = Date()
-                self.lastError = anyError
+                self.lastError = combinedError
             }
 
             self.logger.info("Scan cycle complete")
@@ -150,12 +152,13 @@ class MonitorEngine: ObservableObject {
     private func processMonitor(
         _ monitor: MonitorConfig,
         config: AppConfig,
-        errorAccumulator: inout String?
+        errors: inout [String]
     ) {
         let monitorPath = monitor.path
         logger.debug("Processing monitor: \(monitor.name) at \(monitorPath)")
 
-        let scannedFolders = scanner.scanDirectory(at: monitorPath, depth: monitor.depth)
+        var visited = Set<String>()
+        let scannedFolders = scanner.scanDirectory(at: monitorPath, depth: monitor.depth, visited: &visited)
 
         guard !scannedFolders.isEmpty else {
             logger.debug("No folders found at \(monitorPath)")
@@ -172,6 +175,8 @@ class MonitorEngine: ObservableObject {
         } else {
             logger.info("\(newFolders.count) new folder(s) for monitor \(monitor.name)")
 
+            let semaphore = DispatchSemaphore(value: 0)
+
             for folderName in newFolders {
                 let fullPath = (monitorPath as NSString).appendingPathComponent(folderName)
 
@@ -185,27 +190,36 @@ class MonitorEngine: ObservableObject {
                     videoExtensions: config.videoExtensions
                 )
 
-                // Build event
-                let event = BackupEvent(
+                var event = BackupEvent(
                     monitorId: monitor.id,
                     monitorName: monitor.name,
                     folderInfo: folderInfo
                 )
 
-                // Send webhook notifications
-                Task {
-                    do {
-                        try await webhookManager.send(event: event, config: config)
-                        logger.info("Webhook sent for: \(folderName)")
-                    } catch {
-                        let msg = "Webhook failed for \(folderName): \(error.localizedDescription)"
-                        logger.error(msg)
-                        await MainActor.run { errorAccumulator = msg }
+                // Save event to history first (with empty webhookResults)
+                historyStore.addEvent(event)
+
+                // Send webhook notifications synchronously on scan queue
+                // Then update the event with results
+                DispatchQueue.global(qos: .utility).async { [weak self] in
+                    guard let self else { semaphore.signal(); return }
+                    Task {
+                        let results = await self.webhookManager.notify(
+                            event: event,
+                            webhooks: config.webhooks
+                        )
+                        event.webhookResults = results
+                        self.historyStore.updateEvent(event)
+
+                        if results.contains(where: { !$0.success }) {
+                            let failed = results.filter { !$0.success }
+                                .map(\.webhookName).joined(separator: ", ")
+                            errors.append("Webhook failed for \(folderName): \(failed)")
+                        }
+                        semaphore.signal()
                     }
                 }
-
-                // Save event to history
-                historyStore.addEvent(event)
+                semaphore.wait()
             }
         }
 

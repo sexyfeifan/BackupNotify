@@ -34,7 +34,6 @@ class FolderAnalyzer {
 
     /// Analyze a folder: compute size, count files, detect videos, calculate level sizes.
     func analyze(path: String, videoExtensions: [String]) -> FolderInfo {
-        let fm = FileManager.default
         let folderName = (path as NSString).lastPathComponent
         let detector = VideoDetector(extensions: videoExtensions)
 
@@ -97,7 +96,8 @@ class FolderAnalyzer {
 
         let fm = FileManager.default
 
-        let canonical = (path as NSString).standardizingPath
+        // Use resolvingSymlinksInPath for proper canonicalization (handles symlinks)
+        let canonical = fm.resolvingSymlinksInPath(path)
         if visited.contains(canonical) { return }
         visited.insert(canonical)
 
@@ -105,7 +105,7 @@ class FolderAnalyzer {
 
         guard let items = try? fm.contentsOfDirectory(
             at: URL(fileURLWithPath: path),
-            includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey, .contentModificationDateKey],
+            includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else {
             logger.error("Failed to read directory: \(path)")
@@ -149,13 +149,10 @@ class FolderAnalyzer {
     // MARK: - Helpers
 
     private func folderDates(path: String) -> (Date, Date) {
-        let fm = FileManager.default
         let fallback = Date()
-
-        guard let attrs = try? fm.attributesOfItem(atPath: path) else {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: path) else {
             return (fallback, fallback)
         }
-
         let created = attrs[.creationDate] as? Date ?? fallback
         let modified = attrs[.modificationDate] as? Date ?? fallback
         return (created, modified)

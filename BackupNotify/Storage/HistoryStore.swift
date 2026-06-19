@@ -25,6 +25,17 @@ final class HistoryStore {
         }
     }
 
+    /// Update an existing event (e.g. after webhook results arrive).
+    func updateEvent(_ event: BackupEvent) {
+        queue.sync {
+            var events = loadEventsInternal()
+            if let index = events.firstIndex(where: { $0.id == event.id }) {
+                events[index] = event
+                saveEventsInternal(events)
+            }
+        }
+    }
+
     func getRecent(_ count: Int) -> [BackupEvent] {
         queue.sync {
             let events = loadEventsInternal()
@@ -68,28 +79,27 @@ final class HistoryStore {
 
     /// Export history as CSV with proper escaping (RFC 4180).
     func exportCSV() -> String {
-        queue.sync {
-            let events = loadEventsInternal()
-            let dateFormatter = ISO8601DateFormatter()
-            var csv = "ID,MonitorName,FolderName,FolderPath,CreatedAt,ModifiedAt,TotalSizeBytes,FileCount,VideoCount,VideoSizeBytes,NotifiedAt\n"
-            for event in events {
-                let fields = [
-                    event.id.uuidString,
-                    escapeCSV(event.monitorName),
-                    escapeCSV(event.folderName),
-                    escapeCSV(event.folderPath),
-                    dateFormatter.string(from: event.createdAt),
-                    dateFormatter.string(from: event.modifiedAt),
-                    "\(event.totalSizeBytes)",
-                    "\(event.fileCount)",
-                    "\(event.videoCount)",
-                    "\(event.videoSizeBytes)",
-                    dateFormatter.string(from: event.notifiedAt)
-                ]
-                csv += fields.joined(separator: ",") + "\n"
-            }
-            return csv
+        // Read data on background queue, return on calling queue
+        let events = queue.sync { loadEventsInternal() }
+        let dateFormatter = ISO8601DateFormatter()
+        var csv = "ID,MonitorName,FolderName,FolderPath,CreatedAt,ModifiedAt,TotalSizeBytes,FileCount,VideoCount,VideoSizeBytes,NotifiedAt\n"
+        for event in events {
+            let fields = [
+                event.id.uuidString,
+                escapeCSV(event.monitorName),
+                escapeCSV(event.folderName),
+                escapeCSV(event.folderPath),
+                dateFormatter.string(from: event.createdAt),
+                dateFormatter.string(from: event.modifiedAt),
+                "\(event.totalSizeBytes)",
+                "\(event.fileCount)",
+                "\(event.videoCount)",
+                "\(event.videoSizeBytes)",
+                dateFormatter.string(from: event.notifiedAt)
+            ]
+            csv += fields.joined(separator: ",") + "\n"
         }
+        return csv
     }
 
     // MARK: - Private

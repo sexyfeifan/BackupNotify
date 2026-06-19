@@ -22,10 +22,10 @@ struct WeComTemplate: NotificationTemplate {
         md += "**📁 路径：**\(event.folderPath)\n"
         md += "**🕐 创建时间：**\(DateUtils.displayString(from: event.createdAt))\n"
         md += "**🕐 修改时间：**\(DateUtils.displayString(from: event.modifiedAt))\n\n"
-        md += "**📊 总大小：**<font color=\"warning\">\(ByteFormatter.string(fromByteCount: Int64(event.totalSizeBytes)))</font>\n"
+        md += "**📊 总大小：**<font color=\"warning\">\(ByteFormatter.string(fromByteCount: event.totalSizeBytes))</font>\n"
         md += "**📄 文件数：**\(event.fileCount)\n"
         md += "**🎬 视频数：**\(event.videoCount)\n"
-        md += "**🎬 视频大小：**\(ByteFormatter.string(fromByteCount: Int64(event.videoSizeBytes)))\n"
+        md += "**🎬 视频大小：**\(ByteFormatter.string(fromByteCount: event.videoSizeBytes))\n"
 
         if !event.levels.isEmpty {
             md += "\n**📂 子目录详情：**\n"

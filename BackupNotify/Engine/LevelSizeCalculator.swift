@@ -40,7 +40,7 @@ struct LevelSizeCalculator {
     ) {
         let fm = FileManager.default
 
-        let canonical = (path as NSString).standardizingPath
+        let canonical = fm.resolvingSymlinksInPath(path)
         if visited.contains(canonical) { return }
         visited.insert(canonical)
 
@@ -113,11 +113,24 @@ struct LevelSizeCalculator {
         return (totalSize, fileCount)
     }
 
+    /// Compute relative path using URL path components to avoid string replacement bugs.
+    /// e.g. base="/foo/bar" target="/foo/bar/baz/file" → "baz/file"
     private func relativePathString(from base: String, to target: String) -> String {
         let baseURL = URL(fileURLWithPath: base)
         let targetURL = URL(fileURLWithPath: target)
-        let rel = targetURL.path.replacingOccurrences(of: baseURL.path, with: "")
-        if rel.hasPrefix("/") { return String(rel.dropFirst()) }
-        return rel
+
+        let baseComponents = baseURL.pathComponents
+        let targetComponents = targetURL.pathComponents
+
+        // Find common prefix length
+        var commonLength = 0
+        for (i, component) in baseComponents.enumerated() {
+            guard i < targetComponents.count, component == targetComponents[i] else { break }
+            commonLength = i + 1
+        }
+
+        // Build relative path from remaining target components
+        let remaining = targetComponents.dropFirst(commonLength)
+        return remaining.joined(separator: "/")
     }
 }

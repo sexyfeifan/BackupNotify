@@ -1,11 +1,10 @@
 import Foundation
-import os
 
 // MARK: - WebhookManager
 
 class WebhookManager {
     private let session: URLSession
-    private let logger = os.Logger(subsystem: "com.backupnotify", category: "WebhookManager")
+    private let logger = Logger.shared
     private let templateEngine = TemplateEngine()
 
     /// Retry intervals in seconds: 5s, 15s, 30s
@@ -18,7 +17,6 @@ class WebhookManager {
     // MARK: - Public API
 
     /// Send notification for a backup event to all enabled webhooks.
-    /// Returns an array of results, one per webhook attempted.
     func notify(event: BackupEvent, webhooks: [WebhookConfig]) async -> [WebhookResult] {
         let enabled = webhooks.filter { $0.enabled }
         guard !enabled.isEmpty else {
@@ -57,7 +55,6 @@ class WebhookManager {
     /// Convenience: send event to webhooks derived from AppConfig.
     func send(event: BackupEvent, config: AppConfig) async throws {
         let results = await notify(event: event, webhooks: config.webhooks)
-        // Attach results to event if needed (caller can inspect).
         if results.contains(where: { !$0.success }) {
             let failed = results.filter { !$0.success }.map(\.webhookName).joined(separator: ", ")
             throw WebhookError.partialFailure(failed: failed)
@@ -81,8 +78,6 @@ class WebhookManager {
 
     // MARK: - Private
 
-    /// Send to a single webhook with retry logic.
-    /// Attempts up to 3 times with intervals of 5s, 15s, 30s.
     private func sendWithRetry(
         url: String,
         body: Data,
@@ -90,11 +85,10 @@ class WebhookManager {
         webhookId: UUID,
         webhookName: String
     ) async -> WebhookResult {
-        // Validate URL scheme
         guard let endpoint = URL(string: url),
               let scheme = endpoint.scheme,
               ["http", "https"].contains(scheme) else {
-            logger.error("Invalid webhook URL (missing http/https scheme): \(url.prefix(30))...")
+            logger.error("Invalid webhook URL (missing http/https scheme)")
             return WebhookResult(
                 webhookId: webhookId,
                 webhookName: webhookName,
@@ -148,7 +142,6 @@ class WebhookManager {
                 logger.warning("Webhook '\(webhookName)' attempt \(attempt + 1) error: \(error.localizedDescription)")
             }
 
-            // Wait before retry (skip wait on last attempt)
             if attempt < retryIntervals.count {
                 let delaySeconds = retryIntervals[attempt]
                 try? await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)

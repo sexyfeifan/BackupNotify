@@ -386,7 +386,7 @@ struct NotifySettingsTab: View {
         Logger.shared.info("发送测试Webhook: \(webhook.name)")
         testResults[webhook.id] = .testing
 
-        let manager = WebhookManager()
+        let manager = webhookManager
         Task {
             let result = await manager.testWebhook(config: webhook)
             if result.success {
@@ -412,6 +412,9 @@ struct NotifySettingsTab: View {
         }
         return url
     }
+
+    // Cached WebhookManager instance for test sends
+    private let webhookManager = WebhookManager()
 
     private func platformColor(_ platform: WebhookPlatform) -> Color {
         switch platform {

@@ -1,5 +1,4 @@
 import Foundation
-import os.log
 
 // MARK: - Logger
 
@@ -29,8 +28,8 @@ final class Logger {
     }()
     private let queue = DispatchQueue(label: "com.backupnotify.logger", qos: .utility)
 
-    /// Cached retention days — avoids re-reading config on every log write.
-    private var cachedRetentionDays: Int = 14
+    /// Cached retention days — all reads/writes go through queue for thread safety.
+    private var _cachedRetentionDays: Int = 14
 
     private var logsDirectoryURL: URL {
         StorageUtils.appSupportURL.appendingPathComponent("logs", isDirectory: true)
@@ -48,13 +47,12 @@ final class Logger {
     }
 
     private init() {
-        // Load retention days once at init.
-        cachedRetentionDays = ConfigStore.shared.load().logRetentionDays
+        _cachedRetentionDays = ConfigStore.shared.load().logRetentionDays
     }
 
     /// Update the cached retention days (called when user changes settings).
     func updateRetentionDays(_ days: Int) {
-        cachedRetentionDays = days
+        queue.async { self._cachedRetentionDays = days }
     }
 
     // MARK: - Public API
@@ -63,6 +61,7 @@ final class Logger {
         log(.info, message)
     }
 
+    @available(*, deprecated, renamed: "warning")
     func warn(_ message: String) {
         log(.warn, message)
     }
@@ -85,7 +84,6 @@ final class Logger {
         let timestamp = timestampFormatter.string(from: Date())
         let logLine = "[\(timestamp)] [\(level.rawValue)] \(message)\n"
 
-        // System log
         let osLevel: OSLogType
         switch level {
         case .info, .debug: osLevel = .info
@@ -94,7 +92,6 @@ final class Logger {
         }
         os_log("%{public}@", log: osLog, type: osLevel, message)
 
-        // File log
         queue.async { [self] in
             self.writeToFile(logLine)
         }
@@ -119,15 +116,15 @@ final class Logger {
                 try line.write(to: fileURL, atomically: true, encoding: .utf8)
             }
         } catch {
-            // Logger must not recurse — write to os_log as last resort.
             os_log("Logger file write failed: %{public}@", log: osLog, type: .error, error.localizedDescription)
         }
     }
 
     private func rotateOldLogs() {
-        let cutoffDate = Calendar.current.date(
-            byAdding: .day, value: -cachedRetentionDays, to: Date()
-        )!
+        let days = _cachedRetentionDays  // Already on queue, safe to read
+        guard let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) else {
+            return
+        }
 
         guard let files = try? fileManager.contentsOfDirectory(
             at: logsDirectoryURL,

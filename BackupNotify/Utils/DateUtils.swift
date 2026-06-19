@@ -33,6 +33,9 @@ enum DateUtils {
     static func formatRelative(_ date: Date) -> String {
         let interval = -date.timeIntervalSinceNow
 
+        // Handle future dates (clock skew) gracefully
+        guard interval >= 0 else { return formatDate(date) }
+
         if interval < 60 {
             return "刚刚"
         } else if interval < 3600 {

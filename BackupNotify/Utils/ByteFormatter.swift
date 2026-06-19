@@ -23,8 +23,12 @@ enum ByteFormatter {
         return "0 B"
     }
 
-    /// Alias used by template rendering (Int64 input for compatibility with
-    /// platform APIs that return Int64 byte counts).
+    /// UInt64 overload — direct pass-through, no overflow risk.
+    static func string(fromByteCount bytes: UInt64) -> String {
+        formatBytes(bytes)
+    }
+
+    /// Int64 overload for compatibility with platform APIs that return Int64 byte counts.
     static func string(fromByteCount bytes: Int64) -> String {
         formatBytes(UInt64(max(0, bytes)))
     }

@@ -173,8 +173,7 @@ struct HistoryView: View {
                         Text("目录层级详情")
                             .font(.headline)
 
-                        ForEach(event.levels.indices, id: \.self) { index in
-                            let level = event.levels[index]
+                        ForEach(event.levels) { level in
                             HStack {
                                 Text(level.relativePath)
                                     .font(.caption)

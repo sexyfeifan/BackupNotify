@@ -52,10 +52,10 @@ struct SlackTemplate: NotificationTemplate {
             "fields": [
                 makeMrkdwn("*🕐 Created:*\n\(DateUtils.displayString(from: event.createdAt))"),
                 makeMrkdwn("*🕐 Modified:*\n\(DateUtils.displayString(from: event.modifiedAt))"),
-                makeMrkdwn("*📊 Total Size:*\n\(ByteFormatter.string(fromByteCount: Int64(event.totalSizeBytes)))"),
+                makeMrkdwn("*📊 Total Size:*\n\(ByteFormatter.string(fromByteCount: event.totalSizeBytes))"),
                 makeMrkdwn("*📄 Files:*\n\(event.fileCount)"),
                 makeMrkdwn("*🎬 Videos:*\n\(event.videoCount)"),
-                makeMrkdwn("*🎬 Video Size:*\n\(ByteFormatter.string(fromByteCount: Int64(event.videoSizeBytes)))"),
+                makeMrkdwn("*🎬 Video Size:*\n\(ByteFormatter.string(fromByteCount: event.videoSizeBytes))"),
             ]
         ] as [String: Any])
 

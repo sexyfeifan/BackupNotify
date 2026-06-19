@@ -23,10 +23,10 @@ struct DingTalkTemplate: NotificationTemplate {
         md += "**🕐 创建时间：** \(DateUtils.displayString(from: event.createdAt))\n\n"
         md += "**🕐 修改时间：** \(DateUtils.displayString(from: event.modifiedAt))\n\n"
         md += "---\n\n"
-        md += "**📊 总大小：** \(ByteFormatter.string(fromByteCount: Int64(event.totalSizeBytes)))\n\n"
+        md += "**📊 总大小：** \(ByteFormatter.string(fromByteCount: event.totalSizeBytes))\n\n"
         md += "**📄 文件数：** \(event.fileCount)\n\n"
         md += "**🎬 视频数：** \(event.videoCount)\n\n"
-        md += "**🎬 视频大小：** \(ByteFormatter.string(fromByteCount: Int64(event.videoSizeBytes)))\n\n"
+        md += "**🎬 视频大小：** \(ByteFormatter.string(fromByteCount: event.videoSizeBytes))\n\n"
 
         if !event.levels.isEmpty {
             md += "---\n\n"

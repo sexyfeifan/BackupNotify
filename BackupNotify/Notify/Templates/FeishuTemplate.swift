@@ -32,13 +32,13 @@ struct FeishuTemplate: NotificationTemplate {
 
         elements.append(makeFieldDiv(
             label: "📊 总大小",
-            value: ByteFormatter.string(fromByteCount: Int64(event.totalSizeBytes))
+            value: ByteFormatter.string(fromByteCount: event.totalSizeBytes)
         ))
         elements.append(makeFieldDiv(label: "📄 文件数", value: "\(event.fileCount)"))
         elements.append(makeFieldDiv(label: "🎬 视频数", value: "\(event.videoCount)"))
         elements.append(makeFieldDiv(
             label: "🎬 视频大小",
-            value: ByteFormatter.string(fromByteCount: Int64(event.videoSizeBytes))
+            value: ByteFormatter.string(fromByteCount: event.videoSizeBytes)
         ))
 
         if !event.levels.isEmpty {

@@ -25,10 +25,10 @@ struct DiscordTemplate: NotificationTemplate {
         fields.append(makeField(name: "📁 Path", value: "`\(event.folderPath)`", inline: false))
         fields.append(makeField(name: "🕐 Created", value: DateUtils.displayString(from: event.createdAt), inline: true))
         fields.append(makeField(name: "🕐 Modified", value: DateUtils.displayString(from: event.modifiedAt), inline: true))
-        fields.append(makeField(name: "📊 Total Size", value: ByteFormatter.string(fromByteCount: Int64(event.totalSizeBytes)), inline: true))
+        fields.append(makeField(name: "📊 Total Size", value: ByteFormatter.string(fromByteCount: event.totalSizeBytes), inline: true))
         fields.append(makeField(name: "📄 Files", value: "\(event.fileCount)", inline: true))
         fields.append(makeField(name: "🎬 Videos", value: "\(event.videoCount)", inline: true))
-        fields.append(makeField(name: "🎬 Video Size", value: ByteFormatter.string(fromByteCount: Int64(event.videoSizeBytes)), inline: true))
+        fields.append(makeField(name: "🎬 Video Size", value: ByteFormatter.string(fromByteCount: event.videoSizeBytes), inline: true))
 
         if !event.levels.isEmpty {
             let levelsText = TemplateHelpers.formatLevelsText(event.levels, bullet: "•")

@@ -12,16 +12,15 @@ struct DirectoryScanner {
     /// - Parameters:
     ///   - path: Absolute path to the directory to scan.
     ///   - depth: How many levels deep to look. 1 = immediate children.
+    ///   - visited: Shared set of canonical paths already visited (for symlink loop detection).
     /// - Returns: Sorted array of folder name strings at the target depth.
-    func scanDirectory(at path: String, depth: Int) -> [String] {
+    func scanDirectory(at path: String, depth: Int, visited: inout Set<String>) -> [String] {
         guard depth >= 1 else { return [] }
 
         let fm = FileManager.default
         let url = URL(fileURLWithPath: path)
 
         guard isAccessible(path) else { return [] }
-
-        var visited = Set<String>()
 
         do {
             let contents = try fm.contentsOfDirectory(
@@ -36,7 +35,6 @@ struct DirectoryScanner {
                 let itemName = itemURL.lastPathComponent
                 if SystemFiles.contains(itemName) { continue }
 
-                // Resolve symlinks and detect loops
                 guard let resolved = resolveSymlink(itemURL.path, visited: &visited) else {
                     continue
                 }
@@ -49,7 +47,8 @@ struct DirectoryScanner {
                 if depth == 1 {
                     results.append(itemName)
                 } else {
-                    let deeper = scanDirectory(at: resolved, depth: depth - 1)
+                    // Pass the same visited set through recursion to detect cross-level loops
+                    let deeper = scanDirectory(at: resolved, depth: depth - 1, visited: &visited)
                     results.append(contentsOf: deeper)
                 }
             }
@@ -102,7 +101,8 @@ struct DirectoryScanner {
             resolved = path
         }
 
-        let canonical = (resolved as NSString).standardizingPath
+        // Use resolvingSymlinksInPath for proper canonicalization
+        let canonical = fm.resolvingSymlinksInPath(resolved)
         if visited.contains(canonical) { return nil }
         visited.insert(canonical)
         return canonical
