@@ -1,0 +1,435 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10001 /* BackupNotifyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10001; };
+		A10002 /* DirectoryScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002; };
+		A10003 /* FolderAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10003; };
+		A10004 /* LevelSizeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10004; };
+		A10005 /* MonitorEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10005; };
+		A10006 /* VideoDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10006; };
+		A10007 /* TemplateEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10007; };
+		A10008 /* DingTalkTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10008; };
+		A10009 /* DiscordTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10009; };
+		A10010 /* FeishuTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10010; };
+		A10011 /* SlackTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10011; };
+		A10012 /* TestTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10012; };
+		A10013 /* WeComTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10013; };
+		A10014 /* WebhookManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10014; };
+		A10015 /* ConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10015; };
+		A10016 /* HistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10016; };
+		A10017 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10017; };
+		A10018 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10018; };
+		A10019 /* SnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10019; };
+		A10020 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10020; };
+		A10021 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10021; };
+		A10022 /* LogViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10022; };
+		A10023 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10023; };
+		A10024 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10024; };
+		A10025 /* ByteFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10025; };
+		A10026 /* DateUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10026; };
+		A10027 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C10001; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		B10001 /* BackupNotifyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupNotifyApp.swift; sourceTree = "<group>"; };
+		B10002 /* DirectoryScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryScanner.swift; sourceTree = "<group>"; };
+		B10003 /* FolderAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderAnalyzer.swift; sourceTree = "<group>"; };
+		B10004 /* LevelSizeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelSizeCalculator.swift; sourceTree = "<group>"; };
+		B10005 /* MonitorEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorEngine.swift; sourceTree = "<group>"; };
+		B10006 /* VideoDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoDetector.swift; sourceTree = "<group>"; };
+		B10007 /* TemplateEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateEngine.swift; sourceTree = "<group>"; };
+		B10008 /* DingTalkTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DingTalkTemplate.swift; sourceTree = "<group>"; };
+		B10009 /* DiscordTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscordTemplate.swift; sourceTree = "<group>"; };
+		B10010 /* FeishuTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeishuTemplate.swift; sourceTree = "<group>"; };
+		B10011 /* SlackTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlackTemplate.swift; sourceTree = "<group>"; };
+		B10012 /* TestTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestTemplate.swift; sourceTree = "<group>"; };
+		B10013 /* WeComTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeComTemplate.swift; sourceTree = "<group>"; };
+		B10014 /* WebhookManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebhookManager.swift; sourceTree = "<group>"; };
+		B10015 /* ConfigStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigStore.swift; sourceTree = "<group>"; };
+		B10016 /* HistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryStore.swift; sourceTree = "<group>"; };
+		B10017 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
+		B10018 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B10019 /* SnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotStore.swift; sourceTree = "<group>"; };
+		B10020 /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		B10021 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		B10022 /* LogViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogViewer.swift; sourceTree = "<group>"; };
+		B10023 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		B10024 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B10025 /* ByteFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ByteFormatter.swift; sourceTree = "<group>"; };
+		B10026 /* DateUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateUtils.swift; sourceTree = "<group>"; };
+		C10001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D10001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		E10001 /* BackupNotify.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BackupNotify.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F10001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		G10001 = {
+			isa = PBXGroup;
+			children = (
+				G10002 /* BackupNotify */,
+				G10003 /* BackupNotifyTests */,
+				G10004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		G10002 /* BackupNotify */ = {
+			isa = PBXGroup;
+			children = (
+				G10010 /* App */,
+				G10011 /* Engine */,
+				G10012 /* Notify */,
+				G10013 /* Storage */,
+				G10014 /* UI */,
+				G10015 /* Utils */,
+				G10016 /* Resources */,
+			);
+			path = BackupNotify;
+			sourceTree = "<group>";
+		};
+		G10003 /* BackupNotifyTests */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = BackupNotifyTests;
+			sourceTree = "<group>";
+		};
+		G10004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E10001 /* BackupNotify.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		G10010 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				B10001 /* BackupNotifyApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		G10011 /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				B10002 /* DirectoryScanner.swift */,
+				B10003 /* FolderAnalyzer.swift */,
+				B10004 /* LevelSizeCalculator.swift */,
+				B10005 /* MonitorEngine.swift */,
+				B10006 /* VideoDetector.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		G10012 /* Notify */ = {
+			isa = PBXGroup;
+			children = (
+				B10007 /* TemplateEngine.swift */,
+				B10014 /* WebhookManager.swift */,
+				G10017 /* Templates */,
+			);
+			path = Notify;
+			sourceTree = "<group>";
+		};
+		G10017 /* Templates */ = {
+			isa = PBXGroup;
+			children = (
+				B10008 /* DingTalkTemplate.swift */,
+				B10009 /* DiscordTemplate.swift */,
+				B10010 /* FeishuTemplate.swift */,
+				B10011 /* SlackTemplate.swift */,
+				B10012 /* TestTemplate.swift */,
+				B10013 /* WeComTemplate.swift */,
+			);
+			path = Templates;
+			sourceTree = "<group>";
+		};
+		G10013 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				B10015 /* ConfigStore.swift */,
+				B10016 /* HistoryStore.swift */,
+				B10017 /* Logger.swift */,
+				B10018 /* Models.swift */,
+				B10019 /* SnapshotStore.swift */,
+			);
+			path = Storage;
+			sourceTree = "<group>";
+		};
+		G10014 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				B10020 /* Components.swift */,
+				B10021 /* HistoryView.swift */,
+				B10022 /* LogViewer.swift */,
+				B10023 /* MenuBarView.swift */,
+				B10024 /* SettingsView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		G10015 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				B10025 /* ByteFormatter.swift */,
+				B10026 /* DateUtils.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		G10016 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				C10001 /* Assets.xcassets */,
+				D10001 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		T10001 /* BackupNotify */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = X10001 /* Build configuration list for PBXNativeTarget "BackupNotify" */;
+			buildPhases = (
+				P10001 /* Sources */,
+				F10001 /* Frameworks */,
+				P10002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BackupNotify;
+			productName = BackupNotify;
+			productReference = E10001 /* BackupNotify.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		PR10001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = X10002 /* Build configuration list for PBXProject "BackupNotify" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = "zh-Hans";
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				"zh-Hans",
+			);
+			mainGroup = G10001;
+			productRefGroup = G10004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				T10001 /* BackupNotify */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		P10002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10027 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		P10001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10001 /* BackupNotifyApp.swift in Sources */,
+				A10002 /* DirectoryScanner.swift in Sources */,
+				A10003 /* FolderAnalyzer.swift in Sources */,
+				A10004 /* LevelSizeCalculator.swift in Sources */,
+				A10005 /* MonitorEngine.swift in Sources */,
+				A10006 /* VideoDetector.swift in Sources */,
+				A10007 /* TemplateEngine.swift in Sources */,
+				A10008 /* DingTalkTemplate.swift in Sources */,
+				A10009 /* DiscordTemplate.swift in Sources */,
+				A10010 /* FeishuTemplate.swift in Sources */,
+				A10011 /* SlackTemplate.swift in Sources */,
+				A10012 /* TestTemplate.swift in Sources */,
+				A10013 /* WeComTemplate.swift in Sources */,
+				A10014 /* WebhookManager.swift in Sources */,
+				A10015 /* ConfigStore.swift in Sources */,
+				A10016 /* HistoryStore.swift in Sources */,
+				A10017 /* Logger.swift in Sources */,
+				A10018 /* Models.swift in Sources */,
+				A10019 /* SnapshotStore.swift in Sources */,
+				A10020 /* Components.swift in Sources */,
+				A10021 /* HistoryView.swift in Sources */,
+				A10022 /* LogViewer.swift in Sources */,
+				A10023 /* MenuBarView.swift in Sources */,
+				A10024 /* SettingsView.swift in Sources */,
+				A10025 /* ByteFormatter.swift in Sources */,
+				A10026 /* DateUtils.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		C10001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		C10002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		C10003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BackupNotify/Resources/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.backupnotify.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		C10004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BackupNotify/Resources/Info.plist;
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.backupnotify.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		X10001 /* Build configuration list for PBXNativeTarget "BackupNotify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10003 /* Debug */,
+				C10004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		X10002 /* Build configuration list for PBXProject "BackupNotify" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10001 /* Debug */,
+				C10002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = PR10001 /* Project object */;
+}
