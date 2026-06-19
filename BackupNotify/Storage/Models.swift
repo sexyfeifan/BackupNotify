@@ -33,6 +33,9 @@ struct AppConfig: Codable {
     var logRetentionDays: Int
     var enableLocalNotification: Bool
 
+    /// Convenience alias used by MonitorEngine timer setup.
+    var pollingIntervalSeconds: TimeInterval { pollingInterval }
+
     static var `default`: AppConfig {
         AppConfig(
             monitors: [],
@@ -56,13 +59,22 @@ struct MonitorConfig: Codable, Identifiable {
     var path: String
     var name: String
     var enabled: Bool
+    var depth: Int
     var excludePatterns: [String]
 
-    init(id: UUID = UUID(), path: String, name: String, enabled: Bool = true, excludePatterns: [String] = []) {
+    init(
+        id: UUID = UUID(),
+        path: String,
+        name: String,
+        enabled: Bool = true,
+        depth: Int = 1,
+        excludePatterns: [String] = []
+    ) {
         self.id = id
         self.path = path
         self.name = name
         self.enabled = enabled
+        self.depth = depth
         self.excludePatterns = excludePatterns
     }
 }
@@ -75,7 +87,14 @@ struct WebhookConfig: Codable, Identifiable {
     var enabled: Bool
     var customTemplate: String?
 
-    init(id: UUID = UUID(), url: String, name: String, platform: WebhookPlatform = .custom, enabled: Bool = true, customTemplate: String? = nil) {
+    init(
+        id: UUID = UUID(),
+        url: String,
+        name: String,
+        platform: WebhookPlatform = .custom,
+        enabled: Bool = true,
+        customTemplate: String? = nil
+    ) {
         self.id = id
         self.url = url
         self.name = name
@@ -103,6 +122,27 @@ struct DirectorySnapshot: Codable {
 
 // MARK: - Event Model
 
+/// Canonical LevelInfo — single source of truth.
+/// Contains `id` for Identifiable conformance and `fileCount` for display.
+struct LevelInfo: Codable, Identifiable, Hashable {
+    var id: UUID
+    var relativePath: String
+    var sizeBytes: UInt64
+    var fileCount: Int
+
+    init(
+        id: UUID = UUID(),
+        relativePath: String,
+        sizeBytes: UInt64,
+        fileCount: Int = 0
+    ) {
+        self.id = id
+        self.relativePath = relativePath
+        self.sizeBytes = sizeBytes
+        self.fileCount = fileCount
+    }
+}
+
 struct BackupEvent: Codable, Identifiable {
     var id: UUID
     var monitorId: UUID
@@ -119,11 +159,65 @@ struct BackupEvent: Codable, Identifiable {
     var levels: [LevelInfo]
     var notifiedAt: Date
     var webhookResults: [WebhookResult]
-}
 
-struct LevelInfo: Codable {
-    var relativePath: String
-    var sizeBytes: UInt64
+    /// Full memberwise initializer with sensible defaults.
+    init(
+        id: UUID = UUID(),
+        monitorId: UUID,
+        monitorName: String,
+        folderName: String,
+        folderPath: String,
+        createdAt: Date,
+        modifiedAt: Date,
+        totalSizeBytes: UInt64,
+        fileCount: Int,
+        videoCount: Int,
+        videoSizeBytes: UInt64,
+        videoExtensions: [String],
+        levels: [LevelInfo],
+        notifiedAt: Date = Date(),
+        webhookResults: [WebhookResult] = []
+    ) {
+        self.id = id
+        self.monitorId = monitorId
+        self.monitorName = monitorName
+        self.folderName = folderName
+        self.folderPath = folderPath
+        self.createdAt = createdAt
+        self.modifiedAt = modifiedAt
+        self.totalSizeBytes = totalSizeBytes
+        self.fileCount = fileCount
+        self.videoCount = videoCount
+        self.videoSizeBytes = videoSizeBytes
+        self.videoExtensions = videoExtensions
+        self.levels = levels
+        self.notifiedAt = notifiedAt
+        self.webhookResults = webhookResults
+    }
+
+    /// Convenience factory: create from a FolderInfo analysis result.
+    init(
+        monitorId: UUID,
+        monitorName: String,
+        folderInfo: FolderInfo,
+        notifiedAt: Date = Date()
+    ) {
+        self.init(
+            monitorId: monitorId,
+            monitorName: monitorName,
+            folderName: folderInfo.name,
+            folderPath: folderInfo.path,
+            createdAt: folderInfo.createdAt,
+            modifiedAt: folderInfo.modifiedAt,
+            totalSizeBytes: folderInfo.totalSizeBytes,
+            fileCount: folderInfo.fileCount,
+            videoCount: folderInfo.videoCount,
+            videoSizeBytes: folderInfo.videoSizeBytes,
+            videoExtensions: folderInfo.videoExtensions,
+            levels: folderInfo.levels,
+            notifiedAt: notifiedAt
+        )
+    }
 }
 
 struct WebhookResult: Codable {
@@ -133,4 +227,27 @@ struct WebhookResult: Codable {
     var statusCode: Int?
     var error: String?
     var sentAt: Date
+}
+
+// MARK: - Shared Constants
+
+/// macOS system files/directories to skip during scanning.
+/// Single source of truth — used by DirectoryScanner, FolderAnalyzer,
+/// LevelSizeCalculator, VideoDetector, and MonitorEngine.
+enum SystemFiles {
+    static let names: Set<String> = [
+        ".DS_Store",
+        ".Spotlight-V100",
+        ".Trashes",
+        ".fseventsd",
+        ".TemporaryItems",
+        ".VolumeIcon.icns",
+        ".DocumentRevisions-V100",
+        ".PKInstallSandboxManager",
+        ".PKInstallSandboxManager-SystemSoftware"
+    ]
+
+    static func contains(_ name: String) -> Bool {
+        names.contains(name)
+    }
 }

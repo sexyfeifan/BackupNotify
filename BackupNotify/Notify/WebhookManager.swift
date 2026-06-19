@@ -1,9 +1,11 @@
 import Foundation
 import os
 
+// MARK: - WebhookManager
+
 class WebhookManager {
     private let session: URLSession
-    private let logger = Logger(subsystem: "com.backupnotify", category: "WebhookManager")
+    private let logger = os.Logger(subsystem: "com.backupnotify", category: "WebhookManager")
     private let templateEngine = TemplateEngine()
 
     /// Retry intervals in seconds: 5s, 15s, 30s
@@ -34,11 +36,8 @@ class WebhookManager {
                         platform: webhook.platform,
                         customTemplate: webhook.customTemplate
                     )
-                    // The rendered URL is the platform default; prefer the config URL
-                    let targetURL = webhook.url
-
                     return await self.sendWithRetry(
-                        url: targetURL,
+                        url: webhook.url,
                         body: rendered.body,
                         headers: rendered.headers,
                         webhookId: webhook.id,
@@ -55,17 +54,26 @@ class WebhookManager {
         }
     }
 
+    /// Convenience: send event to webhooks derived from AppConfig.
+    func send(event: BackupEvent, config: AppConfig) async throws {
+        let results = await notify(event: event, webhooks: config.webhooks)
+        // Attach results to event if needed (caller can inspect).
+        if results.contains(where: { !$0.success }) {
+            let failed = results.filter { !$0.success }.map(\.webhookName).joined(separator: ", ")
+            throw WebhookError.partialFailure(failed: failed)
+        }
+    }
+
     /// Test a single webhook connection by sending a test message.
     func testWebhook(config: WebhookConfig) async -> WebhookResult {
         logger.info("Testing webhook: \(config.name) (\(config.platform.displayName))")
 
         let testBody = TestTemplate.render(platform: config.platform)
-        let headers = defaultHeaders(for: config.platform)
 
         return await sendWithRetry(
             url: config.url,
             body: testBody,
-            headers: headers,
+            headers: ["Content-Type": "application/json; charset=utf-8"],
             webhookId: config.id,
             webhookName: config.name
         )
@@ -82,14 +90,17 @@ class WebhookManager {
         webhookId: UUID,
         webhookName: String
     ) async -> WebhookResult {
-        guard let endpoint = URL(string: url) else {
-            logger.error("Invalid webhook URL: \(url)")
+        // Validate URL scheme
+        guard let endpoint = URL(string: url),
+              let scheme = endpoint.scheme,
+              ["http", "https"].contains(scheme) else {
+            logger.error("Invalid webhook URL (missing http/https scheme): \(url.prefix(30))...")
             return WebhookResult(
                 webhookId: webhookId,
                 webhookName: webhookName,
                 success: false,
                 statusCode: nil,
-                error: "Invalid URL: \(url)",
+                error: "Invalid URL: must start with http:// or https://",
                 sentAt: Date()
             )
         }
@@ -97,13 +108,11 @@ class WebhookManager {
         var lastError: String?
         var lastStatusCode: Int?
 
-        for attempt in 0..<retryIntervals.count + 1 {
-            // Build request
+        for attempt in 0..<(retryIntervals.count + 1) {
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.httpBody = body
             request.timeoutInterval = 30
-            request.setValue("application/json; charset=utf-8", forHTTPHeaderField: "Content-Type")
             for (key, value) in headers {
                 request.setValue(value, forHTTPHeaderField: key)
             }
@@ -114,7 +123,6 @@ class WebhookManager {
                 let statusCode = httpResponse?.statusCode ?? 0
                 lastStatusCode = statusCode
 
-                // Treat 2xx as success
                 if (200..<300).contains(statusCode) {
                     logger.info("Webhook '\(webhookName)' succeeded (HTTP \(statusCode)) on attempt \(attempt + 1)")
                     return WebhookResult(
@@ -127,7 +135,6 @@ class WebhookManager {
                     )
                 }
 
-                // Some platforms return non-2xx with a JSON body indicating success
                 if let bodyString = String(data: responseData, encoding: .utf8) {
                     lastError = "HTTP \(statusCode): \(bodyString)"
                 } else {
@@ -144,7 +151,6 @@ class WebhookManager {
             // Wait before retry (skip wait on last attempt)
             if attempt < retryIntervals.count {
                 let delaySeconds = retryIntervals[attempt]
-                logger.debug("Retrying webhook '\(webhookName)' in \(delaySeconds)s...")
                 try? await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)
             }
         }
@@ -159,14 +165,17 @@ class WebhookManager {
             sentAt: Date()
         )
     }
+}
 
-    /// Default Content-Type headers per platform (supplements the default application/json).
-    private func defaultHeaders(for platform: WebhookPlatform) -> [String: String] {
-        // Most platforms accept plain application/json.
-        // Platforms that need special headers can be added here.
-        switch platform {
-        case .feishu, .dingtalk, .wecom, .slack, .discord, .custom:
-            return [:]
+// MARK: - WebhookError
+
+enum WebhookError: LocalizedError {
+    case partialFailure(failed: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .partialFailure(let failed):
+            return "部分 Webhook 发送失败: \(failed)"
         }
     }
 }

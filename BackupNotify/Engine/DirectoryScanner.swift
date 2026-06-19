@@ -1,20 +1,8 @@
 import Foundation
 
+// MARK: - DirectoryScanner
+
 struct DirectoryScanner {
-
-    // MARK: - System Paths to Skip
-
-    private static let systemFiles: Set<String> = [
-        ".DS_Store",
-        ".Spotlight-V100",
-        ".Trashes",
-        ".fseventsd",
-        ".TemporaryItems",
-        ".VolumeIcon.icns",
-        ".DocumentRevisions-V100",
-        ".PKInstallSandboxManager",
-        ".PKInstallSandboxManager-SystemSoftware"
-    ]
 
     // MARK: - Public API
 
@@ -31,12 +19,8 @@ struct DirectoryScanner {
         let fm = FileManager.default
         let url = URL(fileURLWithPath: path)
 
-        // Verify the directory exists and is accessible
-        guard isAccessible(path) else {
-            return []
-        }
+        guard isAccessible(path) else { return [] }
 
-        // Track visited paths to avoid symlink loops
         var visited = Set<String>()
 
         do {
@@ -50,15 +34,12 @@ struct DirectoryScanner {
 
             for itemURL in contents {
                 let itemName = itemURL.lastPathComponent
+                if SystemFiles.contains(itemName) { continue }
 
-                // Skip known system files
-                if Self.systemFiles.contains(itemName) {
+                // Resolve symlinks and detect loops
+                guard let resolved = resolveSymlink(itemURL.path, visited: &visited) else {
                     continue
                 }
-
-                // Resolve symlinks and check for loops
-                let resolvedPath = resolveSymlink(itemURL.path, visited: &visited)
-                guard let resolved = resolvedPath else { continue }
 
                 var isDir: ObjCBool = false
                 guard fm.fileExists(atPath: resolved, isDirectory: &isDir), isDir.boolValue else {
@@ -66,10 +47,8 @@ struct DirectoryScanner {
                 }
 
                 if depth == 1 {
-                    // At target depth — collect this folder name
                     results.append(itemName)
                 } else {
-                    // Recurse deeper
                     let deeper = scanDirectory(at: resolved, depth: depth - 1)
                     results.append(contentsOf: deeper)
                 }
@@ -78,7 +57,6 @@ struct DirectoryScanner {
             return results.sorted()
 
         } catch {
-            // Log but don't crash — permission errors etc.
             return []
         }
     }
@@ -90,11 +68,7 @@ struct DirectoryScanner {
         guard fm.fileExists(atPath: path, isDirectory: &isDir), isDir.boolValue else {
             return false
         }
-        // Test actual readability
-        guard fm.isReadableFile(atPath: path) else {
-            return false
-        }
-        // Attempt to list contents to confirm full access
+        guard fm.isReadableFile(atPath: path) else { return false }
         do {
             _ = try fm.contentsOfDirectory(atPath: path)
             return true
@@ -110,7 +84,6 @@ struct DirectoryScanner {
     private func resolveSymlink(_ path: String, visited: inout Set<String>) -> String? {
         let fm = FileManager.default
 
-        // Check if it's a symlink
         let attrs = try? fm.attributesOfItem(atPath: path)
         let isSymlink = attrs?[.type] as? FileAttributeType == .typeSymbolicLink
 
@@ -119,7 +92,6 @@ struct DirectoryScanner {
             guard let destination = try? fm.destinationOfSymbolicLink(atPath: path) else {
                 return nil
             }
-            // Resolve relative paths
             if destination.hasPrefix("/") {
                 resolved = destination
             } else {
@@ -130,11 +102,8 @@ struct DirectoryScanner {
             resolved = path
         }
 
-        // Canonicalize to detect loops
         let canonical = (resolved as NSString).standardizingPath
-        if visited.contains(canonical) {
-            return nil // Loop detected
-        }
+        if visited.contains(canonical) { return nil }
         visited.insert(canonical)
         return canonical
     }

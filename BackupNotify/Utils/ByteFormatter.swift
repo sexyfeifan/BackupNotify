@@ -9,6 +9,7 @@ enum ByteFormatter {
         ("B",   1),
     ]
 
+    /// Format a byte count into a human-readable string (e.g. "12.3 GB").
     static func formatBytes(_ bytes: UInt64) -> String {
         for unit in units {
             if bytes >= unit.divisor {
@@ -20,5 +21,11 @@ enum ByteFormatter {
             }
         }
         return "0 B"
+    }
+
+    /// Alias used by template rendering (Int64 input for compatibility with
+    /// platform APIs that return Int64 byte counts).
+    static func string(fromByteCount bytes: Int64) -> String {
+        formatBytes(UInt64(max(0, bytes)))
     }
 }

@@ -14,27 +14,14 @@ struct MenuBarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // MARK: - Header
             headerSection
-
             Divider()
-
-            // MARK: - Status
             statusSection
-
             Divider()
-
-            // MARK: - Recent Notifications
             recentSection
-
             Divider()
-
-            // MARK: - Quick Actions
             actionButtons
-
             Divider()
-
-            // MARK: - Footer
             footerButtons
         }
         .frame(width: 320)
@@ -171,9 +158,7 @@ struct MenuBarView: View {
 
     private var actionButtons: some View {
         HStack(spacing: 12) {
-            Button(action: {
-                engine.scanOnce()
-            }) {
+            Button(action: { engine.scanOnce() }) {
                 Label("立即扫描", systemImage: "arrow.clockwise")
                     .font(.subheadline)
             }
@@ -218,9 +203,7 @@ struct MenuBarView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
 
-            Button(action: {
-                NSApplication.shared.terminate(nil)
-            }) {
+            Button(action: { NSApplication.shared.terminate(nil) }) {
                 HStack {
                     Image(systemName: "power")
                         .font(.caption)
@@ -244,17 +227,11 @@ struct MenuBarView: View {
     }
 
     private func openSettings() {
-        NSApp.sendAction(Selector(("showSettings:")), to: nil, from: nil)
+        // Safe: uses the standard macOS Settings window selector.
+        if #available(macOS 13.0, *) {
+            NSApp.sendAction(Selector(("showSettings:")), to: nil, from: nil)
+        } else {
+            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        }
     }
 }
-
-// MARK: - Previews
-
-#if DEBUG
-struct MenuBarView_Previews: PreviewProvider {
-    static var previews: some View {
-        MenuBarView(engine: MonitorEngine())
-            .frame(width: 320)
-    }
-}
-#endif

@@ -8,10 +8,28 @@ enum DateUtils {
         return df
     }()
 
+    private static let iso8601: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    /// Format a Date into "yyyy-MM-dd HH:mm:ss" display string.
     static func formatDate(_ date: Date) -> String {
         displayFormatter.string(from: date)
     }
 
+    /// Alias used by templates: `DateUtils.displayString(from:)`.
+    static func displayString(from date: Date) -> String {
+        displayFormatter.string(from: date)
+    }
+
+    /// Format a Date into ISO 8601 string.
+    static func iso8601String(from date: Date) -> String {
+        iso8601.string(from: date)
+    }
+
+    /// Human-readable relative time: "刚刚" / "3分钟前" / "2小时前".
     static func formatRelative(_ date: Date) -> String {
         let interval = -date.timeIntervalSinceNow
 

@@ -10,9 +10,8 @@ import Foundation
 ///     "text": "..."
 ///   }
 /// }
-struct DingTalkTemplate {
+struct DingTalkTemplate: NotificationTemplate {
 
-    /// Render the event as a DingTalk markdown payload.
     static func render(event: BackupEvent) -> Data {
         let title = "📹 新备份通知 — \(event.folderName)"
 
@@ -46,13 +45,6 @@ struct DingTalkTemplate {
             ] as [String: Any]
         ]
 
-        return serialize(payload)
-    }
-
-    private static func serialize(_ object: [String: Any]) -> Data {
-        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else {
-            return Data()
-        }
-        return data
+        return TemplateHelpers.serialize(payload)
     }
 }

@@ -10,11 +10,9 @@ import Foundation
 ///     "elements": [...]
 ///   }
 /// }
-struct FeishuTemplate {
+struct FeishuTemplate: NotificationTemplate {
 
-    /// Render the event as a Feishu interactive card message.
     static func render(event: BackupEvent) -> Data {
-        // Header
         let header: [String: Any] = [
             "title": [
                 "tag": "plain_text",
@@ -23,19 +21,15 @@ struct FeishuTemplate {
             "template": "green"
         ]
 
-        // Field rows as Feishu div elements
         var elements: [[String: Any]] = []
 
-        // Summary fields in a two-column layout
         elements.append(makeFieldDiv(label: "📂 文件夹", value: event.folderName))
         elements.append(makeFieldDiv(label: "📁 路径", value: event.folderPath))
         elements.append(makeFieldDiv(label: "🕐 创建时间", value: DateUtils.displayString(from: event.createdAt)))
         elements.append(makeFieldDiv(label: "🕐 修改时间", value: DateUtils.displayString(from: event.modifiedAt)))
 
-        // Divider
         elements.append(["tag": "hr"])
 
-        // Stats row
         elements.append(makeFieldDiv(
             label: "📊 总大小",
             value: ByteFormatter.string(fromByteCount: Int64(event.totalSizeBytes))
@@ -47,13 +41,9 @@ struct FeishuTemplate {
             value: ByteFormatter.string(fromByteCount: Int64(event.videoSizeBytes))
         ))
 
-        // Level details
         if !event.levels.isEmpty {
             elements.append(["tag": "hr"])
-            let levelsText = event.levels.map { level in
-                "• \(level.relativePath) — \(ByteFormatter.string(fromByteCount: Int64(level.sizeBytes)))"
-            }.joined(separator: "\n")
-
+            let levelsText = TemplateHelpers.formatLevelsText(event.levels)
             elements.append([
                 "tag": "div",
                 "text": [
@@ -63,7 +53,6 @@ struct FeishuTemplate {
             ] as [String: Any])
         }
 
-        // Note
         elements.append(["tag": "hr"])
         elements.append([
             "tag": "note",
@@ -75,7 +64,6 @@ struct FeishuTemplate {
             ]
         ] as [String: Any])
 
-        // Assemble card
         let card: [String: Any] = [
             "header": header,
             "elements": elements
@@ -86,26 +74,18 @@ struct FeishuTemplate {
             "card": card
         ]
 
-        return serialize(payload)
+        return TemplateHelpers.serialize(payload)
     }
 
     // MARK: - Helpers
 
-    /// Create a div element with a label-value pair using Feishu lark_md.
     private static func makeFieldDiv(label: String, value: String) -> [String: Any] {
-        return [
+        [
             "tag": "div",
             "text": [
                 "tag": "lark_md",
                 "content": "\(label)：**\(value)**"
             ] as [String: Any]
         ] as [String: Any]
-    }
-
-    private static func serialize(_ object: [String: Any]) -> Data {
-        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys, .prettyPrinted]) else {
-            return Data()
-        }
-        return data
     }
 }

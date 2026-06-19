@@ -1,25 +1,15 @@
 import Foundation
 
+// MARK: - HistoryStore
+
 final class HistoryStore {
     static let shared = HistoryStore()
 
     private let fileManager = FileManager.default
-    private let encoder: JSONEncoder = {
-        let e = JSONEncoder()
-        e.outputFormatting = [.prettyPrinted, .sortedKeys]
-        e.dateEncodingStrategy = .iso8601
-        return e
-    }()
-    private let decoder: JSONDecoder = {
-        let d = JSONDecoder()
-        d.dateDecodingStrategy = .iso8601
-        return d
-    }()
     private let queue = DispatchQueue(label: "com.backupnotify.historystore", qos: .utility)
 
     private var historyFileURL: URL {
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return appSupport.appendingPathComponent("BackupNotify/history.json")
+        StorageUtils.appSupportURL.appendingPathComponent("history.json")
     }
 
     private init() {}
@@ -69,13 +59,34 @@ final class HistoryStore {
         }
     }
 
+    func clearAll() {
+        queue.sync {
+            saveEventsInternal([])
+            Logger.shared.info("All history cleared")
+        }
+    }
+
+    /// Export history as CSV with proper escaping (RFC 4180).
     func exportCSV() -> String {
         queue.sync {
             let events = loadEventsInternal()
-            var csv = "ID,MonitorName,FolderName,FolderPath,CreatedAt,ModifiedAt,TotalSizeBytes,FileCount,VideoCount,VideoSizeBytes,NotifiedAt\n"
             let dateFormatter = ISO8601DateFormatter()
+            var csv = "ID,MonitorName,FolderName,FolderPath,CreatedAt,ModifiedAt,TotalSizeBytes,FileCount,VideoCount,VideoSizeBytes,NotifiedAt\n"
             for event in events {
-                csv += "\(event.id.uuidString),\"\(event.monitorName)\",\"\(event.folderName)\",\"\(event.folderPath)\",\(dateFormatter.string(from: event.createdAt)),\(dateFormatter.string(from: event.modifiedAt)),\(event.totalSizeBytes),\(event.fileCount),\(event.videoCount),\(event.videoSizeBytes),\(dateFormatter.string(from: event.notifiedAt))\n"
+                let fields = [
+                    event.id.uuidString,
+                    escapeCSV(event.monitorName),
+                    escapeCSV(event.folderName),
+                    escapeCSV(event.folderPath),
+                    dateFormatter.string(from: event.createdAt),
+                    dateFormatter.string(from: event.modifiedAt),
+                    "\(event.totalSizeBytes)",
+                    "\(event.fileCount)",
+                    "\(event.videoCount)",
+                    "\(event.videoSizeBytes)",
+                    dateFormatter.string(from: event.notifiedAt)
+                ]
+                csv += fields.joined(separator: ",") + "\n"
             }
             return csv
         }
@@ -87,7 +98,7 @@ final class HistoryStore {
         guard fileManager.fileExists(atPath: historyFileURL.path) else { return [] }
         do {
             let data = try Data(contentsOf: historyFileURL)
-            return try decoder.decode([BackupEvent].self, from: data)
+            return try StorageUtils.decoder.decode([BackupEvent].self, from: data)
         } catch {
             Logger.shared.error("Failed to load history: \(error.localizedDescription)")
             return []
@@ -96,14 +107,20 @@ final class HistoryStore {
 
     private func saveEventsInternal(_ events: [BackupEvent]) {
         do {
-            let parentDir = historyFileURL.deletingLastPathComponent()
-            if !fileManager.fileExists(atPath: parentDir.path) {
-                try fileManager.createDirectory(at: parentDir, withIntermediateDirectories: true)
-            }
-            let data = try encoder.encode(events)
+            try StorageUtils.ensureDirectory(historyFileURL.deletingLastPathComponent())
+            let data = try StorageUtils.encoder.encode(events)
             try data.write(to: historyFileURL, options: .atomic)
         } catch {
             Logger.shared.error("Failed to save history: \(error.localizedDescription)")
         }
+    }
+
+    /// RFC 4180 CSV field escaping: wrap in double quotes, escape internal quotes.
+    private func escapeCSV(_ field: String) -> String {
+        if field.contains("\"") || field.contains(",") || field.contains("\n") || field.contains("\r") {
+            let escaped = field.replacingOccurrences(of: "\"", with: "\"\"")
+            return "\"\(escaped)\""
+        }
+        return "\"\(field)\""
     }
 }

@@ -1,24 +1,14 @@
 import Foundation
 
+// MARK: - SnapshotStore
+
 final class SnapshotStore {
     static let shared = SnapshotStore()
 
     private let fileManager = FileManager.default
-    private let encoder: JSONEncoder = {
-        let e = JSONEncoder()
-        e.outputFormatting = [.prettyPrinted, .sortedKeys]
-        e.dateEncodingStrategy = .iso8601
-        return e
-    }()
-    private let decoder: JSONDecoder = {
-        let d = JSONDecoder()
-        d.dateDecodingStrategy = .iso8601
-        return d
-    }()
 
     private var snapshotsDirectoryURL: URL {
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return appSupport.appendingPathComponent("BackupNotify/snapshots", isDirectory: true)
+        StorageUtils.appSupportURL.appendingPathComponent("snapshots", isDirectory: true)
     }
 
     private init() {}
@@ -30,7 +20,7 @@ final class SnapshotStore {
         guard fileManager.fileExists(atPath: url.path) else { return nil }
         do {
             let data = try Data(contentsOf: url)
-            return try decoder.decode(DirectorySnapshot.self, from: data)
+            return try StorageUtils.decoder.decode(DirectorySnapshot.self, from: data)
         } catch {
             Logger.shared.error("Failed to load snapshot for \(monitorId): \(error.localizedDescription)")
             return nil
@@ -39,9 +29,9 @@ final class SnapshotStore {
 
     func saveSnapshot(_ snapshot: DirectorySnapshot) {
         do {
-            try ensureDirectoryExists(snapshotsDirectoryURL)
+            try StorageUtils.ensureDirectory(snapshotsDirectoryURL)
             let url = snapshotURL(for: snapshot.monitorId)
-            let data = try encoder.encode(snapshot)
+            let data = try StorageUtils.encoder.encode(snapshot)
             try data.write(to: url, options: .atomic)
         } catch {
             Logger.shared.error("Failed to save snapshot: \(error.localizedDescription)")
@@ -62,11 +52,5 @@ final class SnapshotStore {
 
     private func snapshotURL(for monitorId: UUID) -> URL {
         snapshotsDirectoryURL.appendingPathComponent("\(monitorId.uuidString).json")
-    }
-
-    private func ensureDirectoryExists(_ url: URL) throws {
-        if !fileManager.fileExists(atPath: url.path) {
-            try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
-        }
     }
 }

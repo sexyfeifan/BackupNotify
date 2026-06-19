@@ -22,20 +22,17 @@ class FolderAnalyzer {
 
     private let logger: Logger
     private let calculator: LevelSizeCalculator
+    private let maxDepth: Int
 
-    init(logger: Logger, calculator: LevelSizeCalculator = LevelSizeCalculator()) {
+    init(logger: Logger, calculator: LevelSizeCalculator = LevelSizeCalculator(), maxDepth: Int = 20) {
         self.logger = logger
         self.calculator = calculator
+        self.maxDepth = maxDepth
     }
 
     // MARK: - Public API
 
     /// Analyze a folder: compute size, count files, detect videos, calculate level sizes.
-    ///
-    /// - Parameters:
-    ///   - path: Absolute path to the folder.
-    ///   - videoExtensions: Video file extensions to detect (lowercase, without dot).
-    /// - Returns: A `FolderInfo` describing the folder contents.
     func analyze(path: String, videoExtensions: [String]) -> FolderInfo {
         let fm = FileManager.default
         let folderName = (path as NSString).lastPathComponent
@@ -43,10 +40,8 @@ class FolderAnalyzer {
 
         logger.debug("Analyzing folder: \(path)")
 
-        // Get folder metadata
         let (createdAt, modifiedAt) = folderDates(path: path)
 
-        // Walk the folder and accumulate stats
         var totalSize: UInt64 = 0
         var fileCount = 0
         var videoSize: UInt64 = 0
@@ -60,10 +55,10 @@ class FolderAnalyzer {
             fileCount: &fileCount,
             videoSize: &videoSize,
             videoFiles: &videoFiles,
-            visited: &visited
+            visited: &visited,
+            currentDepth: 0
         )
 
-        // Calculate level sizes
         let levels = calculator.calculateLevels(basePath: path, videoDetector: detector)
 
         logger.debug(
@@ -88,7 +83,6 @@ class FolderAnalyzer {
 
     // MARK: - Recursive Walk
 
-    /// Walk a folder recursively, accumulating size and file statistics.
     private func walkFolder(
         path: String,
         detector: VideoDetector,
@@ -96,22 +90,18 @@ class FolderAnalyzer {
         fileCount: inout Int,
         videoSize: inout UInt64,
         videoFiles: inout [String],
-        visited: inout Set<String>
+        visited: inout Set<String>,
+        currentDepth: Int
     ) {
+        guard currentDepth < maxDepth else { return }
+
         let fm = FileManager.default
 
-        // Symlink loop protection
         let canonical = (path as NSString).standardizingPath
         if visited.contains(canonical) { return }
         visited.insert(canonical)
 
         guard fm.isReadableFile(atPath: path) else { return }
-
-        let systemFiles: Set<String> = [
-            ".DS_Store", ".Spotlight-V100", ".Trashes",
-            ".fseventsd", ".TemporaryItems", ".VolumeIcon.icns",
-            ".DocumentRevisions-V100"
-        ]
 
         guard let items = try? fm.contentsOfDirectory(
             at: URL(fileURLWithPath: path),
@@ -124,7 +114,7 @@ class FolderAnalyzer {
 
         for itemURL in items {
             let name = itemURL.lastPathComponent
-            if systemFiles.contains(name) { continue }
+            if SystemFiles.contains(name) { continue }
 
             let resourceValues = try? itemURL.resourceValues(
                 forKeys: [.fileSizeKey, .isDirectoryKey]
@@ -133,7 +123,6 @@ class FolderAnalyzer {
             let isDir = resourceValues?.isDirectory ?? false
 
             if isDir {
-                // Recurse into subdirectory
                 walkFolder(
                     path: itemURL.path,
                     detector: detector,
@@ -141,10 +130,10 @@ class FolderAnalyzer {
                     fileCount: &fileCount,
                     videoSize: &videoSize,
                     videoFiles: &videoFiles,
-                    visited: &visited
+                    visited: &visited,
+                    currentDepth: currentDepth + 1
                 )
             } else {
-                // Count this file
                 let size = UInt64(resourceValues?.fileSize ?? 0)
                 totalSize += size
                 fileCount += 1
@@ -159,7 +148,6 @@ class FolderAnalyzer {
 
     // MARK: - Helpers
 
-    /// Get creation and modification dates for a folder.
     private func folderDates(path: String) -> (Date, Date) {
         let fm = FileManager.default
         let fallback = Date()

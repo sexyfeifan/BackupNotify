@@ -11,9 +11,8 @@ import Foundation
 ///     ...
 ///   ]
 /// }
-struct SlackTemplate {
+struct SlackTemplate: NotificationTemplate {
 
-    /// Render the event as a Slack Block Kit payload.
     static func render(event: BackupEvent) -> Data {
         var blocks: [[String: Any]] = []
 
@@ -51,41 +50,19 @@ struct SlackTemplate {
         blocks.append([
             "type": "section",
             "fields": [
-                [
-                    "type": "mrkdwn",
-                    "text": "*🕐 Created:*\n\(DateUtils.displayString(from: event.createdAt))"
-                ] as [String: Any],
-                [
-                    "type": "mrkdwn",
-                    "text": "*🕐 Modified:*\n\(DateUtils.displayString(from: event.modifiedAt))"
-                ] as [String: Any],
-                [
-                    "type": "mrkdwn",
-                    "text": "*📊 Total Size:*\n\(ByteFormatter.string(fromByteCount: Int64(event.totalSizeBytes)))"
-                ] as [String: Any],
-                [
-                    "type": "mrkdwn",
-                    "text": "*📄 Files:*\n\(event.fileCount)"
-                ] as [String: Any],
-                [
-                    "type": "mrkdwn",
-                    "text": "*🎬 Videos:*\n\(event.videoCount)"
-                ] as [String: Any],
-                [
-                    "type": "mrkdwn",
-                    "text": "*🎬 Video Size:*\n\(ByteFormatter.string(fromByteCount: Int64(event.videoSizeBytes)))"
-                ] as [String: Any]
+                makeMrkdwn("*🕐 Created:*\n\(DateUtils.displayString(from: event.createdAt))"),
+                makeMrkdwn("*🕐 Modified:*\n\(DateUtils.displayString(from: event.modifiedAt))"),
+                makeMrkdwn("*📊 Total Size:*\n\(ByteFormatter.string(fromByteCount: Int64(event.totalSizeBytes)))"),
+                makeMrkdwn("*📄 Files:*\n\(event.fileCount)"),
+                makeMrkdwn("*🎬 Videos:*\n\(event.videoCount)"),
+                makeMrkdwn("*🎬 Video Size:*\n\(ByteFormatter.string(fromByteCount: Int64(event.videoSizeBytes)))"),
             ]
         ] as [String: Any])
 
         // Level details
         if !event.levels.isEmpty {
             blocks.append(["type": "divider"])
-
-            let levelsText = event.levels.map { level in
-                "• `\(level.relativePath)` — \(ByteFormatter.string(fromByteCount: Int64(level.sizeBytes)))"
-            }.joined(separator: "\n")
-
+            let levelsText = TemplateHelpers.formatLevelsText(event.levels, bullet: "•")
             blocks.append([
                 "type": "section",
                 "text": [
@@ -95,17 +72,13 @@ struct SlackTemplate {
             ] as [String: Any])
         }
 
-        let payload: [String: Any] = [
-            "blocks": blocks
-        ]
-
-        return serialize(payload)
+        let payload: [String: Any] = ["blocks": blocks]
+        return TemplateHelpers.serialize(payload)
     }
 
-    private static func serialize(_ object: [String: Any]) -> Data {
-        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else {
-            return Data()
-        }
-        return data
+    // MARK: - Helpers
+
+    private static func makeMrkdwn(_ text: String) -> [String: Any] {
+        ["type": "mrkdwn", "text": text] as [String: Any]
     }
 }

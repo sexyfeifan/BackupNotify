@@ -72,9 +72,7 @@ struct MonitorSettingsTab: View {
                     }
                 }
 
-                Button("添加目录") {
-                    addDirectory()
-                }
+                Button("添加目录") { addDirectory() }
             }
 
             Section(header: Text("扫描设置")) {
@@ -120,7 +118,8 @@ struct MonitorSettingsTab: View {
 
         let newMonitor = MonitorConfig(
             path: url.path,
-            name: url.lastPathComponent
+            name: url.lastPathComponent,
+            depth: scanDepth
         )
         monitors.append(newMonitor)
         saveConfig()
@@ -148,6 +147,16 @@ struct NotifySettingsTab: View {
     @State private var newWebhookName: String = ""
     @State private var newWebhookPlatform: WebhookPlatform = .feishu
     @State private var newWebhookURL: String = ""
+
+    // Webhook test feedback
+    @State private var testResults: [UUID: WebhookTestState] = [:]
+
+    enum WebhookTestState: Equatable {
+        case idle
+        case testing
+        case success(statusCode: Int)
+        case failure(error: String)
+    }
 
     var body: some View {
         Form {
@@ -177,6 +186,11 @@ struct NotifySettingsTab: View {
                             }
 
                             Spacer()
+
+                            // Test result indicator
+                            if let state = testResults[webhook.id] {
+                                testStateIcon(state)
+                            }
 
                             Toggle("", isOn: $webhook.enabled)
                                 .labelsHidden()
@@ -265,6 +279,28 @@ struct NotifySettingsTab: View {
         .onAppear { loadConfig() }
     }
 
+    @ViewBuilder
+    private func testStateIcon(_ state: WebhookTestState) -> some View {
+        switch state {
+        case .idle:
+            EmptyView()
+        case .testing:
+            ProgressView()
+                .controlSize(.small)
+                .frame(width: 16, height: 16)
+        case .success(let code):
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+                .font(.caption)
+                .help("测试成功 (HTTP \(code))")
+        case .failure(let error):
+            Image(systemName: "xmark.circle.fill")
+                .foregroundColor(.red)
+                .font(.caption)
+                .help("测试失败: \(error)")
+        }
+    }
+
     private var addWebhookSheet: some View {
         VStack(spacing: 16) {
             Text("添加Webhook")
@@ -282,10 +318,8 @@ struct NotifySettingsTab: View {
             .frame(height: 140)
 
             HStack {
-                Button("取消") {
-                    showAddWebhookSheet = false
-                }
-                .keyboardShortcut(.cancelAction)
+                Button("取消") { showAddWebhookSheet = false }
+                    .keyboardShortcut(.cancelAction)
 
                 Spacer()
 
@@ -350,13 +384,23 @@ struct NotifySettingsTab: View {
 
     private func testWebhook(_ webhook: WebhookConfig) {
         Logger.shared.info("发送测试Webhook: \(webhook.name)")
+        testResults[webhook.id] = .testing
+
         let manager = WebhookManager()
         Task {
             let result = await manager.testWebhook(config: webhook)
             if result.success {
                 Logger.shared.info("测试Webhook成功: \(webhook.name)")
+                testResults[webhook.id] = .success(statusCode: result.statusCode ?? 0)
             } else {
                 Logger.shared.error("测试Webhook失败: \(webhook.name) - \(result.error ?? "未知错误")")
+                testResults[webhook.id] = .failure(error: result.error ?? "未知错误")
+            }
+
+            // Auto-clear result after 10 seconds
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            if testResults[webhook.id] != .testing {
+                testResults[webhook.id] = .idle
             }
         }
     }
@@ -407,6 +451,7 @@ struct GeneralSettingsTab: View {
                         var config = ConfigStore.shared.load()
                         config.logRetentionDays = logRetentionDays
                         ConfigStore.shared.save(config)
+                        Logger.shared.updateRetentionDays(logRetentionDays)
                     }
             }
 
@@ -443,9 +488,7 @@ struct GeneralSettingsTab: View {
                     Spacer()
 
                     Button("打开配置文件夹") {
-                        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-                        let configDir = appSupport.appendingPathComponent("BackupNotify", isDirectory: true)
-                        NSWorkspace.shared.open(configDir)
+                        NSWorkspace.shared.open(StorageUtils.appSupportURL)
                     }
                 }
             }
@@ -453,10 +496,8 @@ struct GeneralSettingsTab: View {
             Section {
                 HStack {
                     Spacer()
-                    Button("清除历史记录") {
-                        showClearConfirmation = true
-                    }
-                    .foregroundColor(.red)
+                    Button("清除历史记录") { showClearConfirmation = true }
+                        .foregroundColor(.red)
                     Spacer()
                 }
             }
@@ -465,7 +506,7 @@ struct GeneralSettingsTab: View {
         .alert("确认清除", isPresented: $showClearConfirmation) {
             Button("取消", role: .cancel) {}
             Button("清除", role: .destructive) {
-                clearHistory()
+                HistoryStore.shared.clearAll()
             }
         } message: {
             Text("确定要清除所有历史记录吗？此操作无法撤销。")
@@ -500,68 +541,39 @@ struct GeneralSettingsTab: View {
         config.videoExtensions = videoExtensions
         ConfigStore.shared.save(config)
     }
-
-    private func clearHistory() {
-        let historyFile = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("BackupNotify/history.json")
-        try? FileManager.default.removeItem(at: historyFile)
-        Logger.shared.info("历史记录已清除")
-    }
 }
 
 // MARK: - AboutTab
 
 struct AboutTab: View {
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-    }
-
-    private var buildNumber: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-    }
-
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
 
             Image(systemName: "externaldrive.badge.checkmark")
-                .font(.system(size: 56))
+                .font(.system(size: 48))
                 .foregroundColor(.accentColor)
 
             Text("BackupNotify")
                 .font(.title)
                 .fontWeight(.bold)
 
-            Text("版本 \(appVersion) (\(buildNumber))")
+            Text("v1.0")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
 
-            Divider()
-                .frame(width: 200)
-
-            Text("备份监控与通知工具")
-                .font(.headline)
-                .foregroundColor(.secondary)
-
-            Text("自动监控指定目录中的新备份文件夹，\n分析文件内容并通过Webhook发送通知。")
+            Text("macOS 备份监控通知工具\n监控目录变化，推送 Webhook 通知")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
 
             Spacer()
+
+            Text("MIT License")
+                .font(.caption)
+                .foregroundColor(.secondary.opacity(0.7))
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
-
-// MARK: - Previews
-
-#if DEBUG
-struct SettingsView_Previews: PreviewProvider {
-    static var previews: some View {
-        SettingsView(engine: MonitorEngine())
-    }
-}
-#endif

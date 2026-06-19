@@ -10,18 +10,12 @@ struct TestTemplate {
     /// Render a test message body for the given platform.
     static func render(platform: WebhookPlatform) -> Data {
         switch platform {
-        case .feishu:
-            return renderFeishu()
-        case .dingtalk:
-            return renderDingTalk()
-        case .wecom:
-            return renderWeCom()
-        case .slack:
-            return renderSlack()
-        case .discord:
-            return renderDiscord()
-        case .custom:
-            return renderCustom()
+        case .feishu:   return renderFeishu()
+        case .dingtalk: return renderDingTalk()
+        case .wecom:    return renderWeCom()
+        case .slack:    return renderSlack()
+        case .discord:  return renderDiscord()
+        case .custom:   return renderCustom()
         }
     }
 
@@ -49,7 +43,7 @@ struct TestTemplate {
                 ]
             ] as [String: Any]
         ]
-        return serialize(payload)
+        return TemplateHelpers.serialize(payload)
     }
 
     // MARK: - DingTalk
@@ -62,7 +56,7 @@ struct TestTemplate {
                 "text": "## ✅ BackupNotify 连接测试\n\nWebhook 连接成功！\n\n当检测到新备份时，您将在此收到通知。\n\n**测试时间：** \(DateUtils.displayString(from: Date()))\n"
             ] as [String: Any]
         ]
-        return serialize(payload)
+        return TemplateHelpers.serialize(payload)
     }
 
     // MARK: - WeCom
@@ -74,7 +68,7 @@ struct TestTemplate {
                 "content": "# ✅ BackupNotify 连接测试\nWebhook 连接成功！\n当检测到新备份时，您将在此收到通知。\n**测试时间：**\(DateUtils.displayString(from: Date()))"
             ] as [String: Any]
         ]
-        return serialize(payload)
+        return TemplateHelpers.serialize(payload)
     }
 
     // MARK: - Slack
@@ -99,7 +93,7 @@ struct TestTemplate {
                 ] as [String: Any]
             ]
         ]
-        return serialize(payload)
+        return TemplateHelpers.serialize(payload)
     }
 
     // MARK: - Discord
@@ -118,7 +112,7 @@ struct TestTemplate {
                 ] as [String: Any]
             ]
         ]
-        return serialize(payload)
+        return TemplateHelpers.serialize(payload)
     }
 
     // MARK: - Custom
@@ -129,15 +123,6 @@ struct TestTemplate {
             "message": "BackupNotify webhook connection test successful.",
             "timestamp": DateUtils.iso8601String(from: Date())
         ]
-        return serialize(payload)
-    }
-
-    // MARK: - Helpers
-
-    private static func serialize(_ object: [String: Any]) -> Data {
-        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else {
-            return Data()
-        }
-        return data
+        return TemplateHelpers.serialize(payload)
     }
 }

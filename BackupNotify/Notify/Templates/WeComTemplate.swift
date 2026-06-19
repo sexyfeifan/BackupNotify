@@ -12,9 +12,8 @@ import Foundation
 ///
 /// Note: WeCom markdown uses a subset of Markdown.
 /// Supported: headers (# ##), bold (**), links, quotes (>), color text (<font>).
-struct WeComTemplate {
+struct WeComTemplate: NotificationTemplate {
 
-    /// Render the event as a WeCom markdown payload.
     static func render(event: BackupEvent) -> Data {
         var md = ""
         md += "# 📹 新备份通知\n"
@@ -42,13 +41,6 @@ struct WeComTemplate {
             ] as [String: Any]
         ]
 
-        return serialize(payload)
-    }
-
-    private static func serialize(_ object: [String: Any]) -> Data {
-        guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else {
-            return Data()
-        }
-        return data
+        return TemplateHelpers.serialize(payload)
     }
 }

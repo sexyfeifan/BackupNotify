@@ -22,25 +22,8 @@ struct VideoDetector {
         guard let items = try? fm.contentsOfDirectory(atPath: path) else {
             return []
         }
-
         return items.filter { item in
-            !isSystemFile(item) && isVideoFile(item)
+            !SystemFiles.contains(item) && isVideoFile(item)
         }
-    }
-
-    // MARK: - Helpers
-
-    /// Check if a filename matches a known macOS system artifact.
-    func isSystemFile(_ name: String) -> Bool {
-        let systemFiles: Set<String> = [
-            ".DS_Store",
-            ".Spotlight-V100",
-            ".Trashes",
-            ".fseventsd",
-            ".TemporaryItems",
-            ".VolumeIcon.icns",
-            ".DocumentRevisions-V100"
-        ]
-        return systemFiles.contains(name)
     }
 }

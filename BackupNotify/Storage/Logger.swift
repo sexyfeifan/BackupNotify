@@ -1,6 +1,8 @@
 import Foundation
 import os.log
 
+// MARK: - Logger
+
 final class Logger {
     static let shared = Logger()
 
@@ -8,6 +10,7 @@ final class Logger {
         case info  = "INFO"
         case warn  = "WARN"
         case error = "ERROR"
+        case debug = "DEBUG"
     }
 
     private let osLog = OSLog(subsystem: "com.backupnotify", category: "general")
@@ -26,9 +29,11 @@ final class Logger {
     }()
     private let queue = DispatchQueue(label: "com.backupnotify.logger", qos: .utility)
 
+    /// Cached retention days — avoids re-reading config on every log write.
+    private var cachedRetentionDays: Int = 14
+
     private var logsDirectoryURL: URL {
-        let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        return appSupport.appendingPathComponent("BackupNotify/logs", isDirectory: true)
+        StorageUtils.appSupportURL.appendingPathComponent("logs", isDirectory: true)
     }
 
     /// Public accessor for the current day's log file URL.
@@ -42,7 +47,15 @@ final class Logger {
         return logsDirectoryURL
     }
 
-    private init() {}
+    private init() {
+        // Load retention days once at init.
+        cachedRetentionDays = ConfigStore.shared.load().logRetentionDays
+    }
+
+    /// Update the cached retention days (called when user changes settings).
+    func updateRetentionDays(_ days: Int) {
+        cachedRetentionDays = days
+    }
 
     // MARK: - Public API
 
@@ -54,8 +67,16 @@ final class Logger {
         log(.warn, message)
     }
 
+    func warning(_ message: String) {
+        log(.warn, message)
+    }
+
     func error(_ message: String) {
         log(.error, message)
+    }
+
+    func debug(_ message: String) {
+        log(.debug, message)
     }
 
     // MARK: - Private
@@ -67,9 +88,9 @@ final class Logger {
         // System log
         let osLevel: OSLogType
         switch level {
-        case .info:  osLevel = .info
-        case .warn:  osLevel = .default
-        case .error: osLevel = .error
+        case .info, .debug: osLevel = .info
+        case .warn:         osLevel = .default
+        case .error:        osLevel = .error
         }
         os_log("%{public}@", log: osLog, type: osLevel, message)
 
@@ -81,7 +102,7 @@ final class Logger {
 
     private func writeToFile(_ line: String) {
         do {
-            try ensureDirectoryExists(logsDirectoryURL)
+            try StorageUtils.ensureDirectory(logsDirectoryURL)
             rotateOldLogs()
 
             let fileName = "backupnotify_\(dateFormatter.string(from: Date())).log"
@@ -98,13 +119,15 @@ final class Logger {
                 try line.write(to: fileURL, atomically: true, encoding: .utf8)
             }
         } catch {
-            // Silent fail for logger — avoid recursion
+            // Logger must not recurse — write to os_log as last resort.
+            os_log("Logger file write failed: %{public}@", log: osLog, type: .error, error.localizedDescription)
         }
     }
 
     private func rotateOldLogs() {
-        let retentionDays = ConfigStore.shared.load().logRetentionDays
-        let cutoffDate = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date())!
+        let cutoffDate = Calendar.current.date(
+            byAdding: .day, value: -cachedRetentionDays, to: Date()
+        )!
 
         guard let files = try? fileManager.contentsOfDirectory(
             at: logsDirectoryURL,
@@ -118,12 +141,6 @@ final class Logger {
                created < cutoffDate {
                 try? fileManager.removeItem(at: file)
             }
-        }
-    }
-
-    private func ensureDirectoryExists(_ url: URL) throws {
-        if !fileManager.fileExists(atPath: url.path) {
-            try fileManager.createDirectory(at: url, withIntermediateDirectories: true)
         }
     }
 }

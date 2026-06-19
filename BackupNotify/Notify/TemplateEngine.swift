@@ -1,62 +1,91 @@
 import Foundation
 
+// MARK: - NotificationTemplate Protocol
+
+/// Unified protocol for all platform-specific notification templates.
+/// Eliminates the switch-based dispatch and enables OCP-compliant extension.
+protocol NotificationTemplate {
+    /// Render a backup event into a platform-specific JSON payload.
+    static func render(event: BackupEvent) -> Data
+}
+
+// MARK: - TemplateHelpers
+
+/// Shared helpers for all template implementations.
+/// Eliminates the 7× duplication of `serialize` and repeated level formatting.
+enum TemplateHelpers {
+
+    /// Serialize a JSON-compatible dictionary to Data.
+    static func serialize(_ object: [String: Any]) -> Data {
+        (try? JSONSerialization.data(withJSONObject: object, options: StorageUtils.jsonOptions)) ?? Data()
+    }
+
+    /// Format levels as human-readable bullet list (used by templates).
+    static func formatLevelsText(_ levels: [LevelInfo], bullet: String = "•") -> String {
+        guard !levels.isEmpty else { return "" }
+        return levels.map { level in
+            "\(bullet) \(level.relativePath) — \(ByteFormatter.string(fromByteCount: Int64(level.sizeBytes)))"
+        }.joined(separator: "\n")
+    }
+
+    /// Sanitize a string for safe insertion into JSON/Markdown payloads.
+    /// Escapes characters that could break payload structure.
+    static func sanitize(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "\\n")
+            .replacingOccurrences(of: "\r", with: "\\r")
+    }
+}
+
+// MARK: - RenderedPayload
+
+/// The output of TemplateEngine.render — body, headers, and metadata.
+struct RenderedPayload {
+    let body: Data
+    let headers: [String: String]
+}
+
+// MARK: - TemplateEngine
+
 /// Renders a `BackupEvent` into platform-specific JSON payloads
 /// and applies custom template variable substitution.
 struct TemplateEngine {
 
+    /// Registry of built-in templates keyed by platform.
+    /// To add a new platform: (1) create a struct conforming to NotificationTemplate,
+    /// (2) add a case to WebhookPlatform, (3) register here.
+    private static let registry: [WebhookPlatform: NotificationTemplate.Type] = [
+        .feishu:   FeishuTemplate.self,
+        .dingtalk: DingTalkTemplate.self,
+        .wecom:    WeComTemplate.self,
+        .slack:    SlackTemplate.self,
+        .discord:  DiscordTemplate.self,
+    ]
+
     /// Render a BackupEvent into the appropriate format for the given platform.
-    /// Returns the request body, extra headers, and a placeholder URL
-    /// (the caller overrides the URL with the webhook's configured URL).
     func render(
         event: BackupEvent,
         platform: WebhookPlatform,
         customTemplate: String?
-    ) -> (body: Data, headers: [String: String], url: String) {
-        // If a custom template is provided and the platform is .custom, use it directly.
+    ) -> RenderedPayload {
+        // Custom platform with user template → variable substitution
         if platform == .custom, let custom = customTemplate, !custom.isEmpty {
             let rendered = applyCustomTemplate(custom, event: event)
             let body = rendered.data(using: .utf8) ?? Data()
-            return (body: body, headers: ["Content-Type": "application/json; charset=utf-8"], url: "")
+            return RenderedPayload(body: body, headers: defaultHeaders)
         }
 
-        let body: Data
-        let headers: [String: String]
-        let url: String
-
-        switch platform {
-        case .feishu:
-            body = FeishuTemplate.render(event: event)
-            headers = ["Content-Type": "application/json; charset=utf-8"]
-            url = ""  // caller uses webhook config URL
-
-        case .dingtalk:
-            body = DingTalkTemplate.render(event: event)
-            headers = ["Content-Type": "application/json; charset=utf-8"]
-            url = ""
-
-        case .wecom:
-            body = WeComTemplate.render(event: event)
-            headers = ["Content-Type": "application/json; charset=utf-8"]
-            url = ""
-
-        case .slack:
-            body = SlackTemplate.render(event: event)
-            headers = ["Content-Type": "application/json; charset=utf-8"]
-            url = ""
-
-        case .discord:
-            body = DiscordTemplate.render(event: event)
-            headers = ["Content-Type": "application/json; charset=utf-8"]
-            url = ""
-
-        case .custom:
-            // custom platform without a template — fall back to a simple JSON payload
-            body = buildGenericPayload(event: event)
-            headers = ["Content-Type": "application/json; charset=utf-8"]
-            url = ""
+        // Look up registered template
+        if let templateType = Self.registry[platform] {
+            let body = templateType.render(event: event)
+            return RenderedPayload(body: body, headers: defaultHeaders)
         }
 
-        return (body: body, headers: headers, url: url)
+        // Fallback: generic JSON payload for .custom without template
+        let body = buildGenericPayload(event: event)
+        return RenderedPayload(body: body, headers: defaultHeaders)
     }
 
     // MARK: - Custom Template Variable Replacement
@@ -88,7 +117,7 @@ struct TemplateEngine {
             "{file_count}":      "\(event.fileCount)",
             "{video_count}":     "\(event.videoCount)",
             "{video_size}":      ByteFormatter.string(fromByteCount: Int64(event.videoSizeBytes)),
-            "{levels}":          formatLevelsText(event.levels),
+            "{levels}":          TemplateHelpers.formatLevelsText(event.levels),
             "{levels_json}":     formatLevelsJSON(event.levels),
         ]
 
@@ -99,22 +128,16 @@ struct TemplateEngine {
         return result
     }
 
-    // MARK: - Helpers
+    // MARK: - Private
 
-    /// Format levels as a human-readable multi-line text block.
-    private func formatLevelsText(_ levels: [LevelInfo]) -> String {
-        guard !levels.isEmpty else { return "(no sub-directories)" }
-        return levels.map { level in
-            "  • \(level.relativePath) — \(ByteFormatter.string(fromByteCount: Int64(level.sizeBytes)))"
-        }.joined(separator: "\n")
+    private var defaultHeaders: [String: String] {
+        ["Content-Type": "application/json; charset=utf-8"]
     }
 
     /// Format levels as a JSON array string.
     private func formatLevelsJSON(_ levels: [LevelInfo]) -> String {
         guard !levels.isEmpty else { return "[]" }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys]
-        if let data = try? encoder.encode(levels),
+        if let data = try? StorageUtils.encoder.encode(levels),
            let str = String(data: data, encoding: .utf8) {
             return str
         }
@@ -141,6 +164,6 @@ struct TemplateEngine {
                 "size": ByteFormatter.string(fromByteCount: Int64($0.sizeBytes))
             ] as [String: Any] }
         ]
-        return (try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])) ?? Data()
+        return TemplateHelpers.serialize(payload)
     }
 }
