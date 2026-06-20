@@ -92,6 +92,19 @@ struct MenuBarView: View {
                     .foregroundColor(.orange)
                     .padding(.top, 2)
             }
+
+            if let error = engine.lastError {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                    Text(error)
+                        .font(.caption2)
+                        .foregroundColor(.red)
+                        .lineLimit(2)
+                }
+                .padding(.top, 2)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -227,11 +240,29 @@ struct MenuBarView: View {
     }
 
     private func openSettings() {
-        // Safe: uses the standard macOS Settings window selector.
+        NSApp.activate(ignoringOtherApps: true)
+
+        // Try the standard SwiftUI Settings action first
         if #available(macOS 13.0, *) {
-            NSApp.sendAction(Selector(("showSettings:")), to: nil, from: nil)
-        } else {
-            NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+            if NSApp.sendAction(Selector(("showSettings:")), to: nil, from: nil) {
+                return
+            }
         }
+
+        // Fallback: reuse existing window or create new one
+        let existingWindow = NSApp.windows.first { $0.title == "BackupNotify 设置" && $0.isVisible }
+        if let window = existingWindow {
+            window.makeKeyAndOrderFront(nil)
+            return
+        }
+
+        let settingsView = SettingsView(engine: engine)
+        let hostingController = NSHostingController(rootView: settingsView)
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "BackupNotify 设置"
+        window.setContentSize(NSSize(width: 550, height: 450))
+        window.styleMask = [.titled, .closable, .resizable]
+        window.center()
+        window.makeKeyAndOrderFront(nil)
     }
 }

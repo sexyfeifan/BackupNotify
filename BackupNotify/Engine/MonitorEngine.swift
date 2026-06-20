@@ -3,10 +3,6 @@ import Combine
 
 // MARK: - MonitorEngine
 
-/// The main orchestrator for BackupNotify.
-///
-/// Owns the scan loop, coordinates DirectoryScanner ↔ FolderAnalyzer ↔ SnapshotStore ↔ WebhookManager,
-/// and publishes UI-facing state via `@Published` properties.
 class MonitorEngine: ObservableObject {
 
     // MARK: - Published State
@@ -26,11 +22,9 @@ class MonitorEngine: ObservableObject {
     private let historyStore: HistoryStore
     private let webhookManager: WebhookManager
     private let logger: Logger
-    private let scanQueue = DispatchQueue(label: "com.backupnotify.scan", qos: .utility)
 
     // MARK: - Init
 
-    /// Full initializer with explicit dependencies.
     init(
         config: AppConfig,
         snapshotStore: SnapshotStore,
@@ -48,7 +42,6 @@ class MonitorEngine: ObservableObject {
         updateActiveMonitors()
     }
 
-    /// Convenience initializer using singletons and saved configuration.
     convenience init() {
         let logger = Logger.shared
         let config = ConfigStore.shared.load()
@@ -67,12 +60,15 @@ class MonitorEngine: ObservableObject {
 
     // MARK: - Public API
 
-    /// Start the periodic monitoring loop.
     func start() {
         guard !isRunning else {
-            logger.warning("MonitorEngine.start() called but engine is already running")
+            logger.warning("MonitorEngine.start() — already running")
             return
         }
+
+        // Always reload latest config before starting
+        config = ConfigStore.shared.load()
+        updateActiveMonitors()
 
         guard !config.monitors.filter(\.enabled).isEmpty else {
             logger.warning("No enabled monitors — engine will not start")
@@ -95,7 +91,6 @@ class MonitorEngine: ObservableObject {
         }
     }
 
-    /// Stop the monitoring loop.
     func stop() {
         logger.info("MonitorEngine stopping")
         timer?.invalidate()
@@ -103,8 +98,10 @@ class MonitorEngine: ObservableObject {
         isRunning = false
     }
 
-    /// Perform a single scan cycle across all enabled monitors.
     func scanOnce() {
+        // Reload config each scan cycle to pick up webhook/setting changes
+        config = ConfigStore.shared.load()
+
         let monitors = config.monitors.filter(\.enabled)
         guard !monitors.isEmpty else {
             logger.warning("scanOnce() — no enabled monitors, skipping")
@@ -113,19 +110,19 @@ class MonitorEngine: ObservableObject {
 
         let capturedConfig = config
 
-        scanQueue.async { [weak self] in
+        Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
 
             self.logger.info("Scan cycle starting — \(monitors.count) monitor(s)")
             var errors: [String] = []
 
             for monitor in monitors {
-                self.processMonitor(monitor, config: capturedConfig, errors: &errors)
+                await self.processMonitor(monitor, config: capturedConfig, errors: &errors)
             }
 
             let combinedError = errors.isEmpty ? nil : errors.joined(separator: "; ")
 
-            DispatchQueue.main.async {
+            await MainActor.run {
                 self.lastScanDate = Date()
                 self.lastError = combinedError
             }
@@ -134,7 +131,6 @@ class MonitorEngine: ObservableObject {
         }
     }
 
-    /// Reload configuration (called when user changes settings).
     func reloadConfig(_ newConfig: AppConfig) {
         logger.info("Reloading configuration")
         let wasRunning = isRunning
@@ -153,12 +149,12 @@ class MonitorEngine: ObservableObject {
         _ monitor: MonitorConfig,
         config: AppConfig,
         errors: inout [String]
-    ) {
+    ) async {
         let monitorPath = monitor.path
         logger.debug("Processing monitor: \(monitor.name) at \(monitorPath)")
 
         var visited = Set<String>()
-        let scannedFolders = scanner.scanDirectory(at: monitorPath, depth: monitor.depth, visited: &visited)
+        let scannedFolders = scanner.scanDirectory(at: monitorPath, depth: monitor.depth, visited: &visited, excludePatterns: monitor.excludePatterns)
 
         guard !scannedFolders.isEmpty else {
             logger.debug("No folders found at \(monitorPath)")
@@ -175,8 +171,6 @@ class MonitorEngine: ObservableObject {
         } else {
             logger.info("\(newFolders.count) new folder(s) for monitor \(monitor.name)")
 
-            let semaphore = DispatchSemaphore(value: 0)
-
             for folderName in newFolders {
                 let fullPath = (monitorPath as NSString).appendingPathComponent(folderName)
 
@@ -190,36 +184,54 @@ class MonitorEngine: ObservableObject {
                     videoExtensions: config.videoExtensions
                 )
 
-                var event = BackupEvent(
+                let event = BackupEvent(
                     monitorId: monitor.id,
                     monitorName: monitor.name,
                     folderInfo: folderInfo
                 )
 
-                // Save event to history first (with empty webhookResults)
+                // Save event to history
                 historyStore.addEvent(event)
 
-                // Send webhook notifications synchronously on scan queue
-                // Then update the event with results
-                DispatchQueue.global(qos: .utility).async { [weak self] in
-                    guard let self else { semaphore.signal(); return }
-                    Task {
-                        let results = await self.webhookManager.notify(
-                            event: event,
-                            webhooks: config.webhooks
-                        )
-                        event.webhookResults = results
-                        self.historyStore.updateEvent(event)
+                // Send local notification if enabled
+                if config.enableLocalNotification {
+                    LocalNotifier.notify(event: event)
+                }
 
-                        if results.contains(where: { !$0.success }) {
+                // Check quiet hours before sending webhooks
+                if let qh = config.quietHours, qh.enabled, isInQuietHours(qh) {
+                    logger.info("Skipping webhook — quiet hours active (\(qh.startHour):\(String(format: "%02d", qh.startMinute))-\(qh.endHour):\(String(format: "%02d", qh.endMinute)))")
+                } else {
+                    // Send webhook notifications (non-blocking, no semaphore)
+                    let webhooks = config.webhooks
+                    let enabledWebhooks = webhooks.filter { $0.enabled }
+
+                    if !enabledWebhooks.isEmpty {
+                        logger.info("Sending webhook to \(enabledWebhooks.count) endpoint(s) for \(folderName)")
+
+                        let webhookMgr = self.webhookManager
+                        let history = self.historyStore
+                        let monitorName = monitor.name
+                        let loggerRef = self.logger
+
+                        Task.detached(priority: .utility) {
+                            let results = await webhookMgr.notify(event: event, webhooks: webhooks)
+                            var updatedEvent = event
+                            updatedEvent.webhookResults = results
+                            history.updateEvent(updatedEvent)
+
                             let failed = results.filter { !$0.success }
-                                .map(\.webhookName).joined(separator: ", ")
-                            errors.append("Webhook failed for \(folderName): \(failed)")
+                            if !failed.isEmpty {
+                                let names = failed.map(\.webhookName).joined(separator: ", ")
+                                loggerRef.error("Webhook failed for \(monitorName)/\(folderName): \(names)")
+                            } else {
+                                loggerRef.info("Webhook sent successfully for \(monitorName)/\(folderName)")
+                            }
                         }
-                        semaphore.signal()
+                    } else {
+                        logger.debug("No enabled webhooks for \(folderName), skipping notification")
                     }
                 }
-                semaphore.wait()
             }
         }
 
@@ -230,6 +242,23 @@ class MonitorEngine: ObservableObject {
             knownFolders: Set(scannedFolders)
         )
         snapshotStore.saveSnapshot(updatedSnapshot)
+    }
+
+    // MARK: - Quiet Hours
+
+    private func isInQuietHours(_ qh: QuietHours) -> Bool {
+        let now = Calendar.current.dateComponents([.hour, .minute], from: Date())
+        let currentMinutes = (now.hour ?? 0) * 60 + (now.minute ?? 0)
+        let startMinutes = qh.startHour * 60 + qh.startMinute
+        let endMinutes = qh.endHour * 60 + qh.endMinute
+
+        if startMinutes <= endMinutes {
+            // Same day range (e.g. 09:00 - 17:00)
+            return currentMinutes >= startMinutes && currentMinutes < endMinutes
+        } else {
+            // Overnight range (e.g. 22:00 - 08:00)
+            return currentMinutes >= startMinutes || currentMinutes < endMinutes
+        }
     }
 
     // MARK: - Private Helpers

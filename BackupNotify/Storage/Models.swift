@@ -120,6 +120,37 @@ struct DirectorySnapshot: Codable {
     var knownFolders: Set<String>
 }
 
+// MARK: - File Tree Entry
+
+/// A single node in the complete file tree (file or directory).
+struct FileEntry: Codable, Identifiable {
+    var id: UUID
+    var name: String
+    var relativePath: String
+    var sizeBytes: UInt64
+    var isDirectory: Bool
+    var depth: Int
+    var childCount: Int  // number of direct children (files only, for directories)
+
+    init(
+        id: UUID = UUID(),
+        name: String,
+        relativePath: String,
+        sizeBytes: UInt64,
+        isDirectory: Bool,
+        depth: Int,
+        childCount: Int = 0
+    ) {
+        self.id = id
+        self.name = name
+        self.relativePath = relativePath
+        self.sizeBytes = sizeBytes
+        self.isDirectory = isDirectory
+        self.depth = depth
+        self.childCount = childCount
+    }
+}
+
 // MARK: - Event Model
 
 /// Canonical LevelInfo — single source of truth.
@@ -157,6 +188,7 @@ struct BackupEvent: Codable, Identifiable {
     var videoSizeBytes: UInt64
     var videoExtensions: [String]
     var levels: [LevelInfo]
+    var fileEntries: [FileEntry]
     var notifiedAt: Date
     var webhookResults: [WebhookResult]
 
@@ -175,6 +207,7 @@ struct BackupEvent: Codable, Identifiable {
         videoSizeBytes: UInt64,
         videoExtensions: [String],
         levels: [LevelInfo],
+        fileEntries: [FileEntry] = [],
         notifiedAt: Date = Date(),
         webhookResults: [WebhookResult] = []
     ) {
@@ -191,6 +224,7 @@ struct BackupEvent: Codable, Identifiable {
         self.videoSizeBytes = videoSizeBytes
         self.videoExtensions = videoExtensions
         self.levels = levels
+        self.fileEntries = fileEntries
         self.notifiedAt = notifiedAt
         self.webhookResults = webhookResults
     }
@@ -215,6 +249,7 @@ struct BackupEvent: Codable, Identifiable {
             videoSizeBytes: folderInfo.videoSizeBytes,
             videoExtensions: folderInfo.videoExtensions,
             levels: folderInfo.levels,
+            fileEntries: folderInfo.fileEntries,
             notifiedAt: notifiedAt
         )
     }

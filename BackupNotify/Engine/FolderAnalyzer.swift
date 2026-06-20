@@ -14,6 +14,7 @@ struct FolderInfo {
     let videoSizeBytes: UInt64
     let videoExtensions: [String]
     let levels: [LevelInfo]
+    let fileEntries: [FileEntry]
 }
 
 // MARK: - FolderAnalyzer
@@ -60,10 +61,15 @@ class FolderAnalyzer {
 
         let levels = calculator.calculateLevels(basePath: path, videoDetector: detector)
 
+        // Build complete file tree
+        var fileEntries: [FileEntry] = []
+        buildFileTree(path: path, basePath: path, depth: 0, entries: &fileEntries)
+
         logger.debug(
             "Folder analysis complete: \(folderName) — " +
             "\(fileCount) files, \(videoFiles.count) videos, " +
-            "\(totalSize) bytes total, \(videoSize) bytes video"
+            "\(totalSize) bytes total, \(videoSize) bytes video, " +
+            "\(fileEntries.count) tree entries"
         )
 
         return FolderInfo(
@@ -76,7 +82,8 @@ class FolderAnalyzer {
             videoCount: videoFiles.count,
             videoSizeBytes: videoSize,
             videoExtensions: videoExtensions,
-            levels: levels
+            levels: levels,
+            fileEntries: fileEntries
         )
     }
 
@@ -97,7 +104,7 @@ class FolderAnalyzer {
         let fm = FileManager.default
 
         // Use resolvingSymlinksInPath for proper canonicalization (handles symlinks)
-        let canonical = fm.resolvingSymlinksInPath(path)
+        let canonical = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
         if visited.contains(canonical) { return }
         visited.insert(canonical)
 
@@ -147,6 +154,103 @@ class FolderAnalyzer {
     }
 
     // MARK: - Helpers
+
+    /// Recursively build a complete file tree with depth information.
+    private func buildFileTree(
+        path: String,
+        basePath: String,
+        depth: Int,
+        entries: inout [FileEntry]
+    ) {
+        guard depth < maxDepth else { return }
+
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(
+            at: URL(fileURLWithPath: path),
+            includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        // Pre-compute isDirectory to avoid I/O in sort comparator
+        let itemsWithInfo: [(URL, Bool, String)] = items.map { url in
+            let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+            return (url, isDir, url.lastPathComponent)
+        }
+
+        let sorted = itemsWithInfo.sorted { a, b in
+            if a.1 != b.1 { return a.1 } // directories first
+            return a.2.localizedCaseInsensitiveCompare(b.2) == .orderedAscending
+        }
+
+        for (itemURL, isDir, name) in sorted {
+            if SystemFiles.contains(name) { continue }
+
+            let relativePath: String
+            if depth == 0 {
+                relativePath = name
+            } else {
+                let baseComponents = URL(fileURLWithPath: basePath).pathComponents
+                let itemComponents = itemURL.pathComponents
+                relativePath = itemComponents.dropFirst(baseComponents.count).joined(separator: "/")
+            }
+
+            if isDir {
+                let (dirSize, dirFileCount) = directorySize(path: itemURL.path)
+
+                entries.append(FileEntry(
+                    name: name,
+                    relativePath: relativePath,
+                    sizeBytes: dirSize,
+                    isDirectory: true,
+                    depth: depth,
+                    childCount: dirFileCount
+                ))
+
+                buildFileTree(
+                    path: itemURL.path,
+                    basePath: basePath,
+                    depth: depth + 1,
+                    entries: &entries
+                )
+            } else {
+                let resourceValues = try? itemURL.resourceValues(forKeys: [.fileSizeKey])
+                let size = UInt64(resourceValues?.fileSize ?? 0)
+                entries.append(FileEntry(
+                    name: name,
+                    relativePath: relativePath,
+                    sizeBytes: size,
+                    isDirectory: false,
+                    depth: depth
+                ))
+            }
+        }
+    }
+
+    private func directorySize(path: String) -> (UInt64, Int) {
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(
+            at: URL(fileURLWithPath: path),
+            includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return (0, 0) }
+
+        var totalSize: UInt64 = 0
+        var fileCount = 0
+
+        for itemURL in items {
+            let name = itemURL.lastPathComponent
+            if SystemFiles.contains(name) { continue }
+
+            let resourceValues = try? itemURL.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey])
+            if resourceValues?.isDirectory == true { continue }
+
+            let size = UInt64(resourceValues?.fileSize ?? 0)
+            totalSize += size
+            fileCount += 1
+        }
+
+        return (totalSize, fileCount)
+    }
 
     private func folderDates(path: String) -> (Date, Date) {
         let fallback = Date()

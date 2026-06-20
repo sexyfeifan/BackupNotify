@@ -1,0 +1,23 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcworkspacedata
+xcuserdata/
+BackupNotify.xcodeproj/project.xcworkspace/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Build artifacts
+dist/
+*.dmg
+*.app
+*.ipa
+
+# Temporary
+*.swp
+*.swo
+*~

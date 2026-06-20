@@ -236,11 +236,12 @@ final class LogViewerModel: ObservableObject {
         return Array(lines.suffix(maxLines))
     }
 
+    private static let logPattern = try! NSRegularExpression(pattern: "^\\[([^\\]]+)\\]\\s*\\[(INFO|WARN|ERROR|DEBUG)\\]\\s*(.+)$", options: [])
+
     /// Parse log line format: [2026-06-19 14:30:00.123] [INFO] message
     private func parseLine(_ raw: String) -> ParsedLogLine {
-        let pattern = "^\\[([^\\]]+)\\]\\s*\\[(INFO|WARN|ERROR|DEBUG)\\]\\s*(.+)$"
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
-              let match = regex.firstMatch(
+        let regex = Self.logPattern
+        guard let match = regex.firstMatch(
                 in: raw,
                 range: NSRange(raw.startIndex..., in: raw)
               ) else {

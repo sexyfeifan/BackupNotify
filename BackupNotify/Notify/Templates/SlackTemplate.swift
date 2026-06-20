@@ -1,19 +1,9 @@
 import Foundation
 
-/// Renders a BackupEvent using Slack Block Kit.
-///
-/// Slack webhook format:
-/// {
-///   "blocks": [
-///     { "type": "header", "text": { "type": "plain_text", "text": "..." } },
-///     { "type": "section", "fields": [...] },
-///     { "type": "divider" },
-///     ...
-///   ]
-/// }
 struct SlackTemplate: NotificationTemplate {
 
     static func render(event: BackupEvent) -> Data {
+        let report = ReportBuilder.build(from: event)
         var blocks: [[String: Any]] = []
 
         // Header
@@ -21,64 +11,43 @@ struct SlackTemplate: NotificationTemplate {
             "type": "header",
             "text": [
                 "type": "plain_text",
-                "text": "📹 New Backup — \(event.folderName)",
+                "text": "📋 \(report.title) — \(report.subtitle)",
                 "emoji": true
             ] as [String: Any]
         ] as [String: Any])
 
-        // Context: timestamp
-        blocks.append([
-            "type": "context",
-            "elements": [
-                [
-                    "type": "mrkdwn",
-                    "text": "Detected at \(DateUtils.displayString(from: event.notifiedAt))"
-                ] as [String: Any]
-            ]
-        ] as [String: Any])
+        // Fields (two-column grid)
+        var fields: [[String: Any]] = []
+        for section in report.sections {
+            fields.append(["type": "mrkdwn", "text": "*\(section.label):*\n\(section.value)"] as [String: Any])
+        }
+        // Slack fields come in pairs
+        if fields.count % 2 != 0 {
+            fields.append(["type": "mrkdwn", "text": " "] as [String: Any])
+        }
+        blocks.append(["type": "section", "fields": fields] as [String: Any])
 
-        // Main info section
-        blocks.append([
-            "type": "section",
-            "text": [
-                "type": "mrkdwn",
-                "text": "*📂 Folder:* `\(event.folderName)`\n*📁 Path:* `\(event.folderPath)`"
-            ] as [String: Any]
-        ] as [String: Any])
-
-        // Fields section (two-column grid)
-        blocks.append([
-            "type": "section",
-            "fields": [
-                makeMrkdwn("*🕐 Created:*\n\(DateUtils.displayString(from: event.createdAt))"),
-                makeMrkdwn("*🕐 Modified:*\n\(DateUtils.displayString(from: event.modifiedAt))"),
-                makeMrkdwn("*📊 Total Size:*\n\(ByteFormatter.string(fromByteCount: event.totalSizeBytes))"),
-                makeMrkdwn("*📄 Files:*\n\(event.fileCount)"),
-                makeMrkdwn("*🎬 Videos:*\n\(event.videoCount)"),
-                makeMrkdwn("*🎬 Video Size:*\n\(ByteFormatter.string(fromByteCount: event.videoSizeBytes))"),
-            ]
-        ] as [String: Any])
-
-        // Level details
-        if !event.levels.isEmpty {
-            blocks.append(["type": "divider"])
-            let levelsText = TemplateHelpers.formatLevelsText(event.levels, bullet: "•")
+        // File tree
+        if !report.fileTree.isEmpty {
+            blocks.append(["type": "divider"] as [String: Any])
             blocks.append([
                 "type": "section",
                 "text": [
                     "type": "mrkdwn",
-                    "text": "*📂 Sub-directories:*\n\(levelsText)"
+                    "text": "*文件树:*\n```\n\(report.fileTree)\n```"
                 ] as [String: Any]
             ] as [String: Any])
         }
 
+        // Footer
+        blocks.append([
+            "type": "context",
+            "elements": [
+                ["type": "mrkdwn", "text": report.footer] as [String: Any]
+            ]
+        ] as [String: Any])
+
         let payload: [String: Any] = ["blocks": blocks]
         return TemplateHelpers.serialize(payload)
-    }
-
-    // MARK: - Helpers
-
-    private static func makeMrkdwn(_ text: String) -> [String: Any] {
-        ["type": "mrkdwn", "text": text] as [String: Any]
     }
 }

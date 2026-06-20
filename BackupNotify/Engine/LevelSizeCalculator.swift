@@ -40,7 +40,7 @@ struct LevelSizeCalculator {
     ) {
         let fm = FileManager.default
 
-        let canonical = fm.resolvingSymlinksInPath(path)
+        let canonical = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
         if visited.contains(canonical) { return }
         visited.insert(canonical)
 

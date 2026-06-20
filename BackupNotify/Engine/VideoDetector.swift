@@ -23,7 +23,7 @@ struct VideoDetector {
             return []
         }
         return items.filter { item in
-            !SystemFiles.contains(item) && isVideoFile(item)
+            !item.hasPrefix(".") && !SystemFiles.contains(item) && isVideoFile(item)
         }
     }
 }

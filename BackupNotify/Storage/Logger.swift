@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 // MARK: - Logger
 
@@ -30,6 +31,7 @@ final class Logger {
 
     /// Cached retention days — all reads/writes go through queue for thread safety.
     private var _cachedRetentionDays: Int = 14
+    private var _lastRotationTime: Date = .distantPast
 
     private var logsDirectoryURL: URL {
         StorageUtils.appSupportURL.appendingPathComponent("logs", isDirectory: true)
@@ -121,7 +123,13 @@ final class Logger {
     }
 
     private func rotateOldLogs() {
+        // Only rotate once per hour, not on every log write
+        let now = Date()
+        guard now.timeIntervalSince(_lastRotationTime) > 3600 else { return }
+        _lastRotationTime = now
+
         let days = _cachedRetentionDays  // Already on queue, safe to read
+        guard days > 0 else { return }  // 0 = permanent, never delete
         guard let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date()) else {
             return
         }

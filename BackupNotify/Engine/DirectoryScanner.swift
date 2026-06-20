@@ -14,7 +14,7 @@ struct DirectoryScanner {
     ///   - depth: How many levels deep to look. 1 = immediate children.
     ///   - visited: Shared set of canonical paths already visited (for symlink loop detection).
     /// - Returns: Sorted array of folder name strings at the target depth.
-    func scanDirectory(at path: String, depth: Int, visited: inout Set<String>) -> [String] {
+    func scanDirectory(at path: String, depth: Int, visited: inout Set<String>, excludePatterns: [String] = []) -> [String] {
         guard depth >= 1 else { return [] }
 
         let fm = FileManager.default
@@ -35,6 +35,9 @@ struct DirectoryScanner {
                 let itemName = itemURL.lastPathComponent
                 if SystemFiles.contains(itemName) { continue }
 
+                // Apply exclude patterns
+                if matchesExcludePattern(itemName, patterns: excludePatterns) { continue }
+
                 guard let resolved = resolveSymlink(itemURL.path, visited: &visited) else {
                     continue
                 }
@@ -47,8 +50,7 @@ struct DirectoryScanner {
                 if depth == 1 {
                     results.append(itemName)
                 } else {
-                    // Pass the same visited set through recursion to detect cross-level loops
-                    let deeper = scanDirectory(at: resolved, depth: depth - 1, visited: &visited)
+                    let deeper = scanDirectory(at: resolved, depth: depth - 1, visited: &visited, excludePatterns: excludePatterns)
                     results.append(contentsOf: deeper)
                 }
             }
@@ -58,6 +60,21 @@ struct DirectoryScanner {
         } catch {
             return []
         }
+    }
+
+    /// Check if a name matches any exclude pattern (simple glob: * and ? wildcards).
+    private func matchesExcludePattern(_ name: String, patterns: [String]) -> Bool {
+        for pattern in patterns {
+            if nameMatchesGlob(name, pattern: pattern) { return true }
+        }
+        return false
+    }
+
+    private func nameMatchesGlob(_ name: String, pattern: String) -> Bool {
+        let regexPattern = "^" + NSRegularExpression.escapedPattern(for: pattern)
+            .replacingOccurrences(of: "\\*", with: ".*")
+            .replacingOccurrences(of: "\\?", with: ".") + "$"
+        return name.range(of: regexPattern, options: .regularExpression) != nil
     }
 
     /// Check if a directory exists and is accessible.
@@ -102,7 +119,7 @@ struct DirectoryScanner {
         }
 
         // Use resolvingSymlinksInPath for proper canonicalization
-        let canonical = fm.resolvingSymlinksInPath(resolved)
+        let canonical = URL(fileURLWithPath: resolved).resolvingSymlinksInPath().path
         if visited.contains(canonical) { return nil }
         visited.insert(canonical)
         return canonical

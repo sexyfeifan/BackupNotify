@@ -76,6 +76,25 @@ class WebhookManager {
         )
     }
 
+    /// Ping a webhook URL to check connectivity (HEAD request, no body sent).
+    func pingWebhook(url: String) async -> (reachable: Bool, statusCode: Int?, error: String?) {
+        guard let endpoint = URL(string: url),
+              let scheme = endpoint.scheme,
+              ["http", "https"].contains(scheme) else {
+            return (false, nil, "无效 URL")
+        }
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "HEAD"
+        request.timeoutInterval = 10
+        do {
+            let (_, response) = try await session.data(for: request)
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            return (code < 400, code, nil)
+        } catch {
+            return (false, nil, error.localizedDescription)
+        }
+    }
+
     // MARK: - Private
 
     private func sendWithRetry(
@@ -144,7 +163,12 @@ class WebhookManager {
 
             if attempt < retryIntervals.count {
                 let delaySeconds = retryIntervals[attempt]
-                try? await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)
+                do {
+                    try await Task.sleep(nanoseconds: delaySeconds * 1_000_000_000)
+                } catch {
+                    logger.info("Webhook '\(webhookName)' retry cancelled")
+                    break
+                }
             }
         }
 
